@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/go-playground/validator/v10"
 )
 
 const (
@@ -18,11 +20,11 @@ const (
 
 // Config holds runtime configuration for the telemetry server.
 type Config struct {
-	TelemetryWSURL string
-	HTTPAddr       string
-	AppEnv         string
-	LogLevel       string
-	LogFormat      string
+	TelemetryWSURL string `validate:"required"`
+	HTTPAddr       string `validate:"required"`
+	AppEnv         string `validate:"required"`
+	LogLevel       string `validate:"required,oneof=debug info warn error"`
+	LogFormat      string `validate:"required,oneof=json text"`
 }
 
 // Load reads configuration from environment variables and command-line flags.
@@ -49,57 +51,50 @@ func Load(args []string, getenv func(string) string, out io.Writer) (Config, err
 		return Config{}, fmt.Errorf("parse flags: %w", err)
 	}
 
-	wsURL := firstNonEmpty(*wsURLFlag, getenv("TELEMETRY_WS_URL"))
-	httpAddr := firstNonEmpty(*httpAddrFlag, getenv("HTTP_ADDR"), defaultHTTPAddr)
-	appEnv := strings.ToLower(strings.TrimSpace(firstNonEmpty(*appEnvFlag, getenv("APP_ENV"), defaultAppEnv)))
+	cfg := Config{
+		TelemetryWSURL: strings.TrimSpace(firstNonEmpty(*wsURLFlag, getenv("TELEMETRY_WS_URL"))),
+		HTTPAddr:       strings.TrimSpace(firstNonEmpty(*httpAddrFlag, getenv("HTTP_ADDR"), defaultHTTPAddr)),
+		AppEnv:         strings.ToLower(strings.TrimSpace(firstNonEmpty(*appEnvFlag, getenv("APP_ENV"), defaultAppEnv))),
+		LogLevel:       strings.ToLower(strings.TrimSpace(firstNonEmpty(*logLevelFlag, getenv("LOG_LEVEL"), defaultLogLevel))),
+		LogFormat:      strings.ToLower(strings.TrimSpace(firstNonEmpty(*logFormatFlag, getenv("LOG_FORMAT")))),
+	}
+	if cfg.LogFormat == "" {
+		cfg.LogFormat = defaultLogFormat(cfg.AppEnv)
+	}
 
-	logLevel, err := normalizeLogLevel(firstNonEmpty(*logLevelFlag, getenv("LOG_LEVEL"), defaultLogLevel))
-	if err != nil {
+	if err := validateConfig(cfg); err != nil {
 		return Config{}, err
 	}
 
-	logFormat, err := resolveLogFormat(firstNonEmpty(*logFormatFlag, getenv("LOG_FORMAT")), appEnv)
-	if err != nil {
-		return Config{}, err
-	}
-
-	if wsURL == "" {
-		return Config{}, errors.New("TELEMETRY_WS_URL is required (set env var or -telemetry-ws-url)")
-	}
-
-	return Config{
-		TelemetryWSURL: wsURL,
-		HTTPAddr:       httpAddr,
-		AppEnv:         appEnv,
-		LogLevel:       logLevel,
-		LogFormat:      logFormat,
-	}, nil
+	return cfg, nil
 }
 
-func normalizeLogLevel(v string) (string, error) {
-	level := strings.ToLower(strings.TrimSpace(v))
-	switch level {
-	case "debug", "info", "warn", "error":
-		return level, nil
-	default:
-		return "", fmt.Errorf("invalid LOG_LEVEL %q: must be one of debug, info, warn, error", v)
-	}
-}
-
-func resolveLogFormat(explicit, appEnv string) (string, error) {
-	format := strings.ToLower(strings.TrimSpace(explicit))
-	if format == "" {
-		if appEnv == "production" {
-			return "json", nil
+func validateConfig(cfg Config) error {
+	v := validator.New(validator.WithRequiredStructEnabled())
+	if err := v.Struct(cfg); err != nil {
+		var verrs validator.ValidationErrors
+		if errors.As(err, &verrs) {
+			for _, fe := range verrs {
+				switch fe.Field() {
+				case "TelemetryWSURL":
+					return errors.New("TELEMETRY_WS_URL is required (set env var or -telemetry-ws-url)")
+				case "LogLevel":
+					return fmt.Errorf("invalid LOG_LEVEL %q: must be one of debug, info, warn, error", cfg.LogLevel)
+				case "LogFormat":
+					return fmt.Errorf("invalid LOG_FORMAT %q: must be one of json, text", cfg.LogFormat)
+				}
+			}
 		}
-		return "text", nil
+		return fmt.Errorf("invalid config: %w", err)
 	}
-	switch format {
-	case "json", "text":
-		return format, nil
-	default:
-		return "", fmt.Errorf("invalid LOG_FORMAT %q: must be one of json, text", explicit)
+	return nil
+}
+
+func defaultLogFormat(appEnv string) string {
+	if appEnv == "production" {
+		return "json"
 	}
+	return "text"
 }
 
 func firstNonEmpty(values ...string) string {
