@@ -1,15 +1,20 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"server/internal/buffer"
+	"server/internal/config"
+	"server/internal/httpapi/middleware"
+	"server/internal/logging"
 )
 
 func TestHandleLatest(t *testing.T) {
@@ -157,5 +162,47 @@ func TestNewServer_EndpointReachable(t *testing.T) {
 	}
 	if err := <-errCh; err != nil && err != http.ErrServerClosed {
 		t.Fatalf("ListenAndServe: %v", err)
+	}
+}
+
+func TestNewServer_RequestLogsIncludeRequestID(t *testing.T) {
+	t.Parallel()
+
+	buf := buffer.NewRingBuffer(10)
+	buf.Add([]byte(`{"satellite":"AE1","ts":20}`))
+
+	var logBuf bytes.Buffer
+	logger := logging.NewLogger(config.Config{LogLevel: "info", LogFormat: "json"}, &logBuf, middleware.RequestIDFromContext)
+	srv := NewServer(":0", NewHandler(NewService(buf), logger), logger)
+
+	req := httptest.NewRequest(http.MethodGet, "/telemetry/latest?n=1", nil)
+	req.Header.Set("X-Request-Id", "req-test-123")
+	rr := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body=%q", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	found := false
+	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Fatalf("unmarshal log line %q: %v", line, err)
+		}
+		msg, _ := rec["msg"].(string)
+		if msg != "http request" {
+			continue
+		}
+		if got, _ := rec["request_id"].(string); got != "req-test-123" {
+			t.Fatalf("request_id = %q, want %q; record=%v", got, "req-test-123", rec)
+		}
+		found = true
+	}
+	if !found {
+		t.Fatalf("expected http request log with request_id; logs=%q", logBuf.String())
 	}
 }

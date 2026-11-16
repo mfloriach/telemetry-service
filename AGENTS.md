@@ -23,6 +23,7 @@ Run these commands to verify changes before finishing a task:
 - **Naming:** Use short, single-word, lowercase package names. Never create `util`, `common`, or `base` packages.
 - **Context:** Always pass `ctx context.Context` as the first parameter to functions performing I/O or network calls.
 - **Validation:** Always validate on the extrems never in the intermedite steps.
+- **Logs:**: Always json in production and text on dev and allow to configure the log level, moreover all logs needs to have the context assgigned.
 
 ## Testing Guidelines
 - Write table-driven tests for functions with multiple input/output cases.

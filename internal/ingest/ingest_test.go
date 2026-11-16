@@ -15,7 +15,7 @@ type fakeDialer struct {
 	url  string
 }
 
-func (f *fakeDialer) Dial(ctx context.Context, url string) (Conn, error) {
+func (f *fakeDialer) Dial(_ context.Context, url string) (Conn, error) {
 	f.url = url
 	if f.err != nil {
 		return nil, f.err
@@ -43,7 +43,7 @@ func (c *fakeConn) Read(ctx context.Context) (Message, error) {
 	return Message{}, ctx.Err()
 }
 
-func (c *fakeConn) Close(code int, reason string) error {
+func (c *fakeConn) Close(_ int, _ string) error {
 	c.closed = true
 	return nil
 }

@@ -42,10 +42,10 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
+func writeError(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(errorResponse{Error: msg}); err != nil {
-		slog.Default().Error("failed to encode json response", "error", err)
+		slog.Default().ErrorContext(r.Context(), "failed to encode json response", "error", err)
 	}
 }

@@ -46,7 +46,7 @@ func NewRetryingIngester(runner SessionRunner, logger *slog.Logger) *RetryingIng
 			if half <= 0 {
 				return d
 			}
-			return half + rand.N(d-half+1)
+			return half + rand.N(d-half+1) //nolint:gosec // non-cryptographic jitter for reconnect backoff
 		},
 		sleep: sleepWithContext,
 	}
@@ -68,13 +68,13 @@ func (i *RetryingIngester) Run(ctx context.Context, url string) error {
 		}
 
 		if err != nil {
-			i.logger.Warn("telemetry websocket disconnected", "url", url, "error", err)
+			i.logger.WarnContext(ctx, "telemetry websocket disconnected", "url", url, "error", err)
 			if time.Since(connectedAt) >= i.successMin {
 				attempt = 0
 			}
 			delay := i.backoffDelay(attempt)
 			attempt++
-			i.logger.Info("telemetry websocket reconnect scheduled", "url", url, "attempt", attempt, "delay", delay.String())
+			i.logger.InfoContext(ctx, "telemetry websocket reconnect scheduled", "url", url, "attempt", attempt, "delay", delay.String())
 			if sleepErr := i.sleep(ctx, delay); sleepErr != nil {
 				return ctx.Err()
 			}

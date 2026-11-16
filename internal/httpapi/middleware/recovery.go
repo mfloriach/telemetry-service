@@ -18,9 +18,8 @@ func RecoveryMiddleware(logger *slog.Logger) Middleware {
 					logger.ErrorContext(r.Context(), "panic recovered",
 						"panic", rec,
 						"stack", string(debug.Stack()),
-						"request_id", RequestIDFromContext(r.Context()),
 					)
-					writeError(w, http.StatusInternalServerError, "internal server error")
+					writeError(w, r, http.StatusInternalServerError, "internal server error")
 				}
 			}()
 			next.ServeHTTP(w, r)

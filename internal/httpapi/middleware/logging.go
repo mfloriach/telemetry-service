@@ -16,12 +16,11 @@ func LoggingMiddleware(logger *slog.Logger) Middleware {
 			start := time.Now()
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rec, r)
-			logger.Info("http request",
+			logger.InfoContext(r.Context(), "http request",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rec.status,
 				"duration", time.Since(start).String(),
-				"request_id", RequestIDFromContext(r.Context()),
 			)
 		})
 	}

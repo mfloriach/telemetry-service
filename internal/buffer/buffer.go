@@ -19,6 +19,7 @@ import (
 	"sync"
 )
 
+// DefaultCapacity is the default number of telemetry records retained in memory.
 const DefaultCapacity = 1000
 
 // Record stores an ingested telemetry payload and its sortable timestamp key.

@@ -22,7 +22,7 @@ type dialStep struct {
 	err  error
 }
 
-func (d *scriptDialer) Dial(ctx context.Context, url string) (Conn, error) {
+func (d *scriptDialer) Dial(_ context.Context, _ string) (Conn, error) {
 	idx := int(d.i.Add(1) - 1)
 	d.calls.Add(1)
 	if idx >= len(d.steps) {
@@ -58,7 +58,7 @@ func (c *scriptedConn) Read(ctx context.Context) (Message, error) {
 	return Message{}, ctx.Err()
 }
 
-func (c *scriptedConn) Close(code int, reason string) error { return nil }
+func (c *scriptedConn) Close(_ int, _ string) error { return nil }
 
 func TestIngester_RunReconnectsWithBackoff(t *testing.T) {
 	t.Parallel()

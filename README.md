@@ -6,15 +6,23 @@ HTTP API service that ingests satellite telemetry from an unstable WebSocket sou
 
 Copy `.env.example` to `.env` and adjust values as needed.
 
-The server requires an upstream WebSocket URL and supports a configurable HTTP listen address.
+The server requires an upstream WebSocket URL and supports configurable runtime settings for HTTP and logging.
 
 - `TELEMETRY_WS_URL` (required): upstream WebSocket telemetry source URL
 - `HTTP_ADDR` (optional): HTTP listen address, default `:8080`
+- `APP_ENV` (optional): application environment, default `development`. When set to `production` (case-insensitive) and `LOG_FORMAT` is not explicitly set, logs default to JSON; otherwise logs default to text
+- `LOG_LEVEL` (optional): log level, default `info`. Allowed values: `debug`, `info`, `warn`, `error` (case-insensitive)
+- `LOG_FORMAT` (optional): log output format, default derived from `APP_ENV` (`production` => `json`, otherwise `text`). Allowed values: `json`, `text` (case-insensitive)
 
 CLI flags override environment variables:
 
 - `-telemetry-ws-url=<url>`
 - `-http-addr=<addr>`
+- `-app-env=<env>`
+- `-log-level=<level>`
+- `-log-format=<format>`
+
+Invalid `LOG_LEVEL` or `LOG_FORMAT` values cause startup to fail with a configuration error. Application logs are emitted with runtime/request context; request-scoped logs include `request_id` when available.
 
 ## Run
 
@@ -23,10 +31,15 @@ CLI flags override environment variables:
 TELEMETRY_WS_URL=ws://localhost:9000/telemetry go run ./cmd/telemetry-server
 
 # with CLI flags (flags override env vars)
-TELEMETRY_WS_URL=ws://localhost:9000/telemetry go run ./cmd/telemetry-server -http-addr=:8080
+TELEMETRY_WS_URL=ws://localhost:9000/telemetry go run ./cmd/telemetry-server -http-addr=:8080 -log-level=debug
 
-# explicit flag for upstream URL
-go run ./cmd/telemetry-server -telemetry-ws-url=ws://localhost:9000/telemetry -http-addr=:8080
+# explicit flags (including logging config)
+go run ./cmd/telemetry-server \
+  -telemetry-ws-url=ws://localhost:9000/telemetry \
+  -http-addr=:8080 \
+  -app-env=production \
+  -log-level=info \
+  -log-format=json
 ```
 
 Build:

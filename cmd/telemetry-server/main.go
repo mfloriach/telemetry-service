@@ -1,3 +1,4 @@
+// Package main runs the telemetry server binary.
 package main
 
 import (
@@ -14,7 +15,9 @@ import (
 	"server/internal/buffer"
 	"server/internal/config"
 	"server/internal/httpapi"
+	"server/internal/httpapi/middleware"
 	"server/internal/ingest"
+	"server/internal/logging"
 )
 
 func main() {
@@ -30,7 +33,7 @@ func run() error {
 		return err
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.NewLogger(cfg, os.Stdout, middleware.RequestIDFromContext)
 	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -47,13 +50,13 @@ func run() error {
 	go func() {
 		defer close(ingestDone)
 		if err := ing.Run(ctx, cfg.TelemetryWSURL); err != nil && !errors.Is(err, context.Canceled) {
-			logger.Error("ingestion stopped unexpectedly", "error", err)
+			logger.ErrorContext(ctx, "ingestion stopped unexpectedly", "error", err)
 		}
 	}()
 
 	httpErrCh := make(chan error, 1)
 	go func() {
-		logger.Info("http server listening", "addr", cfg.HTTPAddr)
+		logger.InfoContext(ctx, "http server listening", "addr", cfg.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			httpErrCh <- err
 		}
@@ -62,7 +65,7 @@ func run() error {
 
 	select {
 	case <-ctx.Done():
-		logger.Info("shutdown signal received")
+		logger.InfoContext(ctx, "shutdown signal received")
 	case err := <-httpErrCh:
 		if err != nil {
 			stop()
@@ -73,7 +76,7 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("http server shutdown error", "error", err)
+		logger.ErrorContext(shutdownCtx, "http server shutdown error", "error", err)
 	}
 
 	stop()

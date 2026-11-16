@@ -39,7 +39,7 @@ func (i *SessionIngester) RunOnce(ctx context.Context, url string) error {
 	if err != nil {
 		return fmt.Errorf("dial websocket: %w", err)
 	}
-	i.logger.Info("telemetry websocket connected", "url", url)
+	i.logger.InfoContext(ctx, "telemetry websocket connected", "url", url)
 	defer func() {
 		_ = conn.Close(1000, "closing")
 	}()

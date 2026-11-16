@@ -59,7 +59,7 @@ func RateLimitMiddleware(limiter *RateLimiter) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if limiter != nil && !limiter.Allow(clientKey(r)) {
-				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+				writeError(w, r, http.StatusTooManyRequests, "rate limit exceeded")
 				return
 			}
 			next.ServeHTTP(w, r)

@@ -38,7 +38,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 func TestRequestIDMiddleware(t *testing.T) {
 	t.Parallel()
 
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	h := Chain(next, RequestIDMiddleware())
@@ -54,7 +54,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 	t.Parallel()
 
 	limiter := NewRateLimiter(2, time.Minute)
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	h := Chain(next, RateLimitMiddleware(limiter))
@@ -89,7 +89,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusTeapot)
 	})
