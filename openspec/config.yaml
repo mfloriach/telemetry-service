@@ -1,0 +1,35 @@
+
+schema: spec-driven
+
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+rules:
+  proposal:
+    - Keep proposals under 500 words.
+    - Must use the grill-me skill before drafting the proposal.
+    - Must use the architecture-decision-records skill.
+    - Before proposing, inspect docs/adr and check compatibility with existing architecture decisions.
+    - If an existing ADR needs to change or a new ADR is required, explain why and ask for my approval before proceeding.
+
+  design:
+    - Must use the c4-diagrams skill.
+    - Keep diagrams consistent with the existing system architecture.
+
+  tasks:
+    - Include tests and validation steps.
+    - Keep tasks small, independently verifiable, and ordered by dependency.
+
+operations:
+  apply:
+    guidance:
+      - Implement tasks and run relevant tests before marking them complete.
+      - After all tasks are completed, propose a Git commit message using Conventional Commits.
+      - Validate the proposed commit message using commitlint before presenting it.
+      - Do not create the commit unless explicitly requested.
+
+  archive:
+    guidance:
+      - Summarize the implementation and verification results.
+      - Include the final commit message recommendation if one has not already been provided.
