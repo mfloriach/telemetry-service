@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"server/internal/httpapi/middleware"
 )
 
 // NewMux creates an HTTP mux with telemetry routes registered.
@@ -19,14 +21,14 @@ func NewServer(addr string, h *Handler, logger *slog.Logger) *http.Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	limiter := NewRateLimiter(120, time.Minute)
-	handler := Chain(NewMux(h),
-		RecoveryMiddleware(logger),
-		RequestIDMiddleware(),
-		LoggingMiddleware(logger),
-		BodyLimitMiddleware(1<<20),
-		RateLimitMiddleware(limiter),
-		RequestTimeoutMiddleware(5*time.Second),
+	limiter := middleware.NewRateLimiter(120, time.Minute)
+	handler := middleware.Chain(NewMux(h),
+		middleware.RecoveryMiddleware(logger),
+		middleware.RequestIDMiddleware(),
+		middleware.LoggingMiddleware(logger),
+		middleware.BodyLimitMiddleware(1<<20),
+		middleware.RateLimitMiddleware(limiter),
+		middleware.RequestTimeoutMiddleware(5*time.Second),
 	)
 	return &http.Server{
 		Addr:              addr,

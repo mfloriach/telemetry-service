@@ -1,4 +1,4 @@
-package httpapi
+package middleware
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
 		t.Fatalf("Content-Type = %q, want application/json", ct)
 	}
-	var body ErrorResponse
+	var body errorResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal: %v body=%q", err, rr.Body.String())
 	}
@@ -76,7 +76,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 	if rr.Code != http.StatusTooManyRequests {
 		t.Fatalf("status = %d, want %d body=%q", rr.Code, http.StatusTooManyRequests, rr.Body.String())
 	}
-	var body ErrorResponse
+	var body errorResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal: %v body=%q", err, rr.Body.String())
 	}
