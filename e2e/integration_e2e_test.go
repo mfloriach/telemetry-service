@@ -36,7 +36,8 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
 	ing := ingest.NewIngester(ingest.CoderDialer{}, buf, nil)
-	h := httpapi.NewHandler(buf)
+	svc := httpapi.NewService(buf)
+	h := httpapi.NewHandler(svc, nil)
 	apiSrv := httptest.NewServer(httpapi.NewMux(h))
 	defer apiSrv.Close()
 
@@ -79,7 +80,10 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 
-	var got []map[string]any
+	var got []struct {
+		Satellite string  `json:"satellite"`
+		TS        float64 `json:"ts"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -88,11 +92,10 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	}
 	wantTS := []float64{300, 200, 150}
 	for i, want := range wantTS {
-		ts, ok := got[i]["ts"].(float64)
-		if !ok || ts != want {
-			t.Fatalf("record[%d].ts = %#v, want %v (all=%#v)", i, got[i]["ts"], want, got)
+		if got[i].TS != want {
+			t.Fatalf("record[%d].ts = %v, want %v (all=%#v)", i, got[i].TS, want, got)
 		}
-		if _, ok := got[i]["satellite"]; !ok {
+		if got[i].Satellite == "" {
 			t.Fatalf("record[%d] missing pass-through field satellite: %#v", i, got[i])
 		}
 	}

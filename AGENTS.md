@@ -5,6 +5,9 @@
 - **Architecture:** Standard Go project layout (`cmd/` for binaries, `internal/` for private domain logic).
 - **Database:** PostgreSQL using `pgx/v5` and `sqlc` for generated queries.
 
+## Architecture
+- `cmd/**.go`: should only contains dependency injection and a call to the service logic.
+
 ## Build, Test & Lint Commands
 Run these commands to verify changes before finishing a task:
 - **Format:** `gofmt -w .`
@@ -29,3 +32,19 @@ Run these commands to verify changes before finishing a task:
 - **Always:** Run `go test -race` and `golangci-lint run` on modified packages before completing a task.
 - **Ask First:** Before adding new external dependencies to `go.mod`, changing public API contracts, or writing new SQL migrations.
 - **Never:** Manually edit generated files (`*.sql.go`, `*.pb.go`, or `mock_*.go`). Regenerate them via `make generate` instead.
+
+## Environment Configuration (.env)
+- Always update `.env.example` whenever environment variables are added, removed, renamed, or modified.
+- Keep `.env.example` synchronized with all environment variables used by the application.
+- Clearly distinguish mandatory and optional variables; document defaults for optional variables.
+- Validate mandatory environment variables at application startup and fail fast if missing or invalid.
+- Never overwrite the existing `.env` or expose real secrets in `.env.example`.
+- If it is unclear whether a variable is mandatory or optional, ask me before making a decision.
+
+### Concrete Types
+- Always use concrete types for application inputs, outputs, return values, and service contracts.
+- Avoid `any`, `interface{}`, empty interfaces, and generic untyped maps such as `map[string]any` when a concrete type can be defined.
+- Define explicit request, response, domain, and service types where appropriate.
+- Use interfaces only when there is a clear need for abstraction, such as dependency boundaries or testability.
+- Do not introduce interfaces merely to follow a pattern.
+- Only use non-concrete types when I explicitly ask you to.

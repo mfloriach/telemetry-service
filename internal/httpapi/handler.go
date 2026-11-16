@@ -1,27 +1,45 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
-	"server/internal/buffer"
+	"github.com/go-playground/validator/v10"
 )
 
-// LatestSource provides the latest telemetry records for HTTP responses.
-type LatestSource interface {
-	Latest(n int) []buffer.Record
+// LatestResponse is the JSON response body for GET /telemetry/latest.
+type LatestResponse []json.RawMessage
+
+// TelemetryService provides telemetry query operations for HTTP handlers.
+type TelemetryService interface {
+	Latest(ctx context.Context, n int) (LatestResponse, error)
+}
+
+type latestQuery struct {
+	N int `validate:"required,min=1,max=100"`
 }
 
 // Handler serves telemetry HTTP endpoints.
 type Handler struct {
-	source LatestSource
+	svc      TelemetryService
+	logger   *slog.Logger
+	validate *validator.Validate
 }
 
 // NewHandler creates a telemetry HTTP handler.
-func NewHandler(source LatestSource) *Handler {
-	return &Handler{source: source}
+func NewHandler(svc TelemetryService, logger *slog.Logger) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Handler{
+		svc:      svc,
+		logger:   logger,
+		validate: validator.New(validator.WithRequiredStructEnabled()),
+	}
 }
 
 // RegisterRoutes registers telemetry routes on mux.
@@ -29,41 +47,34 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /telemetry/latest", h.handleLatest)
 }
 
-// NewMux creates an HTTP mux with telemetry routes registered.
-func NewMux(h *Handler) *http.ServeMux {
-	mux := http.NewServeMux()
-	h.RegisterRoutes(mux)
-	return mux
-}
-
-// NewServer creates an HTTP server for the telemetry API on the given address.
-func NewServer(addr string, h *Handler) *http.Server {
-	return &http.Server{
-		Addr:              addr,
-		Handler:           NewMux(h),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-}
-
 func (h *Handler) handleLatest(w http.ResponseWriter, r *http.Request) {
 	n, ok := parseN(r.URL.Query().Get("n"))
 	if !ok {
-		http.Error(w, "invalid query parameter: n must be an integer between 1 and 100", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid query parameter: n must be an integer between 1 and 100")
 		return
 	}
 
-	records := h.source.Latest(n)
-	payloads := make([]json.RawMessage, 0, len(records))
-	for _, rec := range records {
-		payloads = append(payloads, rec.Payload)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(payloads); err != nil {
-		// Best-effort: headers/status may already be written.
+	query := latestQuery{N: n}
+	if err := h.validate.Struct(query); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid query parameter: n must be an integer between 1 and 100")
 		return
 	}
+
+	payloads, err := h.svc.Latest(r.Context(), query.N)
+	if err != nil {
+		status := http.StatusInternalServerError
+		msg := "internal server error"
+		if errors.Is(err, ErrInvalidLimit) {
+			status = http.StatusBadRequest
+			msg = err.Error()
+		} else {
+			h.logger.ErrorContext(r.Context(), "failed to fetch latest telemetry", "error", err)
+		}
+		writeError(w, status, msg)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, payloads)
 }
 
 func parseN(raw string) (int, bool) {
@@ -74,8 +85,22 @@ func parseN(raw string) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	if n < 1 || n > 100 {
-		return 0, false
-	}
 	return n, true
+}
+
+// ErrorResponse is the JSON error response body.
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+func writeJSON[T any](w http.ResponseWriter, status int, v T) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Default().Error("failed to encode json response", "error", err)
+	}
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, ErrorResponse{Error: msg})
 }

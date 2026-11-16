@@ -38,8 +38,9 @@ func run() error {
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
 	ing := ingest.NewIngester(ingest.CoderDialer{}, buf, logger)
-	handler := httpapi.NewHandler(buf)
-	srv := httpapi.NewServer(cfg.HTTPAddr, handler)
+	svc := httpapi.NewService(buf)
+	handler := httpapi.NewHandler(svc, logger)
+	srv := httpapi.NewServer(cfg.HTTPAddr, handler, logger)
 
 	ingestDone := make(chan struct{})
 	go func() {

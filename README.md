@@ -4,6 +4,8 @@ HTTP API service that ingests satellite telemetry from an unstable WebSocket sou
 
 ## Configuration
 
+Copy `.env.example` to `.env` and adjust values as needed.
+
 The server requires an upstream WebSocket URL and supports a configurable HTTP listen address.
 
 - `TELEMETRY_WS_URL` (required): upstream WebSocket telemetry source URL
@@ -35,6 +37,8 @@ go build ./cmd/...
 
 ## HTTP API
 
+OpenAPI specification: [`docs/openapi.yaml`](docs/openapi.yaml)
+
 ### `GET /telemetry/latest`
 
 Query parameters:
@@ -47,7 +51,11 @@ Behavior:
 - Records are sorted in descending order by payload `ts`.
 - Each record is returned as the original JSON object received (pass-through).
 - If fewer than `n` records are buffered, all available records are returned.
-- Invalid, missing, or out-of-range `n` returns `400 Bad Request`.
+- Invalid, missing, or out-of-range `n` returns `400 Bad Request` with a JSON error body: `{"error":"..."}`.
+- Excessive request rates return `429 Too Many Requests` with a JSON error body.
+- Request timeouts return `503 Service Unavailable`.
+- Unexpected failures return `500 Internal Server Error` with a JSON error body.
+- Responses include an `X-Request-Id` correlation header.
 
 Example:
 

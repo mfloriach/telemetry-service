@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: Telemetry Server API
+  version: 1.0.0
+  description: HTTP API for querying buffered satellite telemetry records.
+servers:
+  - url: /
+paths:
+  /telemetry/latest:
+    get:
+      operationId: getLatestTelemetry
+      summary: Get latest telemetry records
+      description: Returns the latest buffered telemetry records sorted by payload `ts` in descending order.
+      parameters:
+        - name: n
+          in: query
+          required: true
+          description: Number of records to return (1-100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Latest telemetry records.
+          headers:
+            X-Request-Id:
+              description: Request correlation identifier.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatestTelemetryResponse'
+              example:
+                - satellite: AE1
+                  ts: 1735657200400
+                  battery: 42
+        '400':
+          description: Invalid request.
+          headers:
+            X-Request-Id:
+              description: Request correlation identifier.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid query parameter: n must be an integer between 1 and 100"
+        '429':
+          description: Rate limit exceeded.
+          headers:
+            X-Request-Id:
+              description: Request correlation identifier.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: rate limit exceeded
+        '500':
+          description: Internal server error.
+          headers:
+            X-Request-Id:
+              description: Request correlation identifier.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: internal server error
+        '503':
+          description: Request timeout.
+          headers:
+            X-Request-Id:
+              description: Request correlation identifier.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: request timeout
+components:
+  schemas:
+    LatestTelemetryResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/TelemetryRecord'
+    TelemetryRecord:
+      type: object
+      description: Original telemetry JSON payload as received (pass-through).
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+      additionalProperties: false
+

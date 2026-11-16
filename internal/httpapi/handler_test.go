@@ -22,6 +22,7 @@ func TestHandleLatest(t *testing.T) {
 		wantStatus int
 		wantLen    int
 		wantTSDesc []int64
+		wantErr    string
 	}{
 		{
 			name:       "valid request returns latest n sorted desc by ts",
@@ -39,11 +40,11 @@ func TestHandleLatest(t *testing.T) {
 			wantLen:    2,
 			wantTSDesc: []int64{20, 10},
 		},
-		{name: "missing n", query: "", wantStatus: http.StatusBadRequest},
-		{name: "non integer n", query: "?n=abc", wantStatus: http.StatusBadRequest},
-		{name: "zero n", query: "?n=0", wantStatus: http.StatusBadRequest},
-		{name: "negative n", query: "?n=-1", wantStatus: http.StatusBadRequest},
-		{name: "too large n", query: "?n=101", wantStatus: http.StatusBadRequest},
+		{name: "missing n", query: "", wantStatus: http.StatusBadRequest, wantErr: "invalid query parameter: n must be an integer between 1 and 100"},
+		{name: "non integer n", query: "?n=abc", wantStatus: http.StatusBadRequest, wantErr: "invalid query parameter: n must be an integer between 1 and 100"},
+		{name: "zero n", query: "?n=0", wantStatus: http.StatusBadRequest, wantErr: "invalid query parameter: n must be an integer between 1 and 100"},
+		{name: "negative n", query: "?n=-1", wantStatus: http.StatusBadRequest, wantErr: "invalid query parameter: n must be an integer between 1 and 100"},
+		{name: "too large n", query: "?n=101", wantStatus: http.StatusBadRequest, wantErr: "invalid query parameter: n must be an integer between 1 and 100"},
 	}
 
 	for _, tt := range tests {
@@ -55,7 +56,7 @@ func TestHandleLatest(t *testing.T) {
 			for _, s := range tt.seed {
 				buf.Add([]byte(s))
 			}
-			h := NewHandler(buf)
+			h := NewHandler(NewService(buf), nil)
 			mux := http.NewServeMux()
 			h.RegisterRoutes(mux)
 
@@ -66,14 +67,24 @@ func TestHandleLatest(t *testing.T) {
 			if rr.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d, body=%q", rr.Code, tt.wantStatus, rr.Body.String())
 			}
-			if tt.wantStatus != http.StatusOK {
-				return
-			}
 			if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
 				t.Fatalf("Content-Type = %q, want application/json", ct)
 			}
+			if tt.wantStatus != http.StatusOK {
+				var errBody ErrorResponse
+				if err := json.Unmarshal(rr.Body.Bytes(), &errBody); err != nil {
+					t.Fatalf("unmarshal error response: %v body=%q", err, rr.Body.String())
+				}
+				if errBody.Error != tt.wantErr {
+					t.Fatalf("error = %q, want %q", errBody.Error, tt.wantErr)
+				}
+				return
+			}
 
-			var got []map[string]any
+			var got []struct {
+				Satellite string  `json:"satellite"`
+				TS        float64 `json:"ts"`
+			}
 			if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 				t.Fatalf("unmarshal response: %v body=%q", err, rr.Body.String())
 			}
@@ -81,14 +92,10 @@ func TestHandleLatest(t *testing.T) {
 				t.Fatalf("len = %d, want %d", len(got), tt.wantLen)
 			}
 			for i, wantTS := range tt.wantTSDesc {
-				ts, ok := got[i]["ts"].(float64)
-				if !ok {
-					t.Fatalf("record[%d] ts missing or not number: %#v", i, got[i]["ts"])
+				if int64(got[i].TS) != wantTS {
+					t.Fatalf("record[%d] ts = %v, want %d", i, got[i].TS, wantTS)
 				}
-				if int64(ts) != wantTS {
-					t.Fatalf("record[%d] ts = %v, want %d", i, ts, wantTS)
-				}
-				if _, ok := got[i]["satellite"]; !ok {
+				if got[i].Satellite == "" {
 					t.Fatalf("record[%d] missing pass-through field satellite: %#v", i, got[i])
 				}
 			}
@@ -110,7 +117,7 @@ func TestNewServer_EndpointReachable(t *testing.T) {
 	addr := ln.Addr().String()
 	_ = ln.Close()
 
-	srv := NewServer(addr, NewHandler(buf))
+	srv := NewServer(addr, NewHandler(NewService(buf), nil), nil)
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.ListenAndServe()
