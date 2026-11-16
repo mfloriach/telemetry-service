@@ -113,6 +113,29 @@ docker run --rm -p 8080:8080 \
   telemetry-server
 ```
 
+### Local Kafka (Docker Compose) and relay
+
+A local single-broker Kafka (KRaft) service is provided for development:
+
+```bash
+docker compose up -d
+# Broker for host clients: localhost:9092
+```
+
+Run the relay (`cmd/relay`) to consume telemetry from the upstream WebSocket and publish each JSON record to Kafka (existing telemetry-server behavior is unchanged):
+
+```bash
+# required for relay
+export TELEMETRY_WS_URL=ws://localhost:9000/telemetry
+export KAFKA_BROKERS=localhost:9092
+# optional (default: telemetry.raw)
+export KAFKA_TOPIC=telemetry.raw
+
+go run ./cmd/relay
+```
+
+Optional logging env vars (`APP_ENV`, `LOG_LEVEL`, `LOG_FORMAT`) follow the same conventions as the telemetry server. Startup fails with a clear error if required relay configuration is missing or invalid.
+
 ### CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs formatting checks, `golangci-lint`, `go test -race ./...`, a build, and a Docker image build with GitHub Actions cache on pushes and pull requests.

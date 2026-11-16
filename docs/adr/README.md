@@ -7,3 +7,4 @@
 | [0003](0003-sort-latest-telemetry-by-payload-ts.md) | Sort latest telemetry responses by payload ts | accepted | 2026-11-16 |
 | [0004](0004-resilient-single-process-ingest-and-serve.md) | Run resilient ingest and HTTP serving in a single process | accepted | 2026-11-16 |
 | [0005](0005-configure-structured-logging.md) | Configure structured logging by environment and level | accepted | 2026-11-16 |
+| [0006](0006-kafka-telemetry-relay.md) | Kafka telemetry relay as a separate process | accepted | 2026-11-16 |
