@@ -35,7 +35,8 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(upstream.URL, "http")
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	ing := ingest.NewIngester(ingest.CoderDialer{}, buf, nil)
+	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, nil)
+	ing := ingest.NewRetryingIngester(sessionIng, nil)
 	svc := httpapi.NewService(buf)
 	h := httpapi.NewHandler(svc, nil)
 	apiSrv := httptest.NewServer(httpapi.NewMux(h))

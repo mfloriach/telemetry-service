@@ -71,7 +71,8 @@ func TestIngester_RunReconnectsWithBackoff(t *testing.T) {
 		{conn: &scriptedConn{readErr: errors.New("drop 1")}},
 		{err: errors.New("dial 3")},
 	}}
-	ing := NewIngester(d, buf, slog.Default())
+	base := NewSessionIngester(d, buf, slog.Default())
+	ing := NewRetryingIngester(base, slog.Default())
 	ing.baseDelay = 10 * time.Millisecond
 	ing.maxDelay = 40 * time.Millisecond
 	ing.successMin = time.Hour // treat short-lived sessions as not successful so backoff grows across retries
@@ -120,7 +121,8 @@ func TestIngester_RunResetsBackoffAfterSuccessfulReconnect(t *testing.T) {
 		{err: errors.New("dial fail after healthy session")},
 		{err: errors.New("dial fail again")},
 	}}
-	ing := NewIngester(d, buf, slog.Default())
+	base := NewSessionIngester(d, buf, slog.Default())
+	ing := NewRetryingIngester(base, slog.Default())
 	ing.baseDelay = 10 * time.Millisecond
 	ing.maxDelay = 80 * time.Millisecond
 	ing.successMin = 20 * time.Millisecond

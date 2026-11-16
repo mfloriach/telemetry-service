@@ -37,7 +37,8 @@ func run() error {
 	defer stop()
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	ing := ingest.NewIngester(ingest.CoderDialer{}, buf, logger)
+	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, logger)
+	ing := ingest.NewRetryingIngester(sessionIng, logger)
 	svc := httpapi.NewService(buf)
 	handler := httpapi.NewHandler(svc, logger)
 	srv := httpapi.NewServer(cfg.HTTPAddr, handler, logger)

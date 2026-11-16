@@ -60,7 +60,7 @@ func TestIngester_RunOnceBuffersReceivedRecords(t *testing.T) {
 		readErr: errors.New("disconnect"),
 	}
 	dialer := &fakeDialer{conn: conn}
-	ing := NewIngester(dialer, buf, nil)
+	ing := NewSessionIngester(dialer, buf, nil)
 
 	err := ing.RunOnce(context.Background(), "ws://example.test/telemetry")
 	if err == nil {
@@ -90,7 +90,7 @@ func TestIngester_RunOnceDialError(t *testing.T) {
 
 	buf := buffer.NewRingBuffer(10)
 	dialer := &fakeDialer{err: errors.New("dial failed")}
-	ing := NewIngester(dialer, buf, nil)
+	ing := NewSessionIngester(dialer, buf, nil)
 
 	err := ing.RunOnce(context.Background(), "ws://example.test/telemetry")
 	if err == nil {
@@ -107,7 +107,7 @@ func TestIngester_RunOnceContextCanceled(t *testing.T) {
 	buf := buffer.NewRingBuffer(10)
 	conn := &fakeConn{}
 	dialer := &fakeDialer{conn: conn}
-	ing := NewIngester(dialer, buf, nil)
+	ing := NewSessionIngester(dialer, buf, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -121,7 +121,7 @@ func TestIngester_RunOnceContextCanceled(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel2()
 	conn2 := &fakeConn{}
-	ing2 := NewIngester(&fakeDialer{conn: conn2}, buf, nil)
+	ing2 := NewSessionIngester(&fakeDialer{conn: conn2}, buf, nil)
 	err = ing2.RunOnce(ctx2, "ws://example.test/telemetry")
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("RunOnce() timeout error = %v, want context.DeadlineExceeded", err)

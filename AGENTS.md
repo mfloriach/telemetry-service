@@ -22,6 +22,7 @@ Run these commands to verify changes before finishing a task:
 - **Control Flow:** Use early returns to keep the happy path left-aligned; avoid deep `if-else` nesting.
 - **Naming:** Use short, single-word, lowercase package names. Never create `util`, `common`, or `base` packages.
 - **Context:** Always pass `ctx context.Context` as the first parameter to functions performing I/O or network calls.
+- **Validation:** Always validate on the extrems never in the intermedite steps.
 
 ## Testing Guidelines
 - Write table-driven tests for functions with multiple input/output cases.

@@ -15,48 +15,34 @@ type Buffer interface {
 	Add(payload []byte)
 }
 
-// Ingester connects to an upstream WebSocket and appends received messages to a buffer.
-type Ingester struct {
-	dialer     Dialer
-	buffer     Buffer
-	logger     *slog.Logger
-	baseDelay  time.Duration
-	maxDelay   time.Duration
-	jitter     func(time.Duration) time.Duration
-	sleep      func(context.Context, time.Duration) error
-	successMin time.Duration
+// SessionRunner performs a single ingestion session.
+type SessionRunner interface {
+	RunOnce(ctx context.Context, url string) error
 }
 
-// NewIngester creates a telemetry ingester.
-func NewIngester(dialer Dialer, buffer Buffer, logger *slog.Logger) *Ingester {
+// SessionIngester connects to an upstream WebSocket and appends received messages to a buffer
+// for a single session.
+type SessionIngester struct {
+	dialer Dialer
+	buffer Buffer
+	logger *slog.Logger
+}
+
+// NewSessionIngester creates a session ingester.
+func NewSessionIngester(dialer Dialer, buffer Buffer, logger *slog.Logger) *SessionIngester {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Ingester{
-		dialer:     dialer,
-		buffer:     buffer,
-		logger:     logger,
-		baseDelay:  100 * time.Millisecond,
-		maxDelay:   5 * time.Second,
-		successMin: time.Second,
-		jitter: func(d time.Duration) time.Duration {
-			if d <= 0 {
-				return 0
-			}
-			// Full jitter in [d/2, d] to avoid tight retry storms while keeping backoff bounded.
-			half := d / 2
-			if half <= 0 {
-				return d
-			}
-			return half + rand.N(d-half+1)
-		},
-		sleep: sleepWithContext,
+	return &SessionIngester{
+		dialer: dialer,
+		buffer: buffer,
+		logger: logger,
 	}
 }
 
 // RunOnce connects to url and reads messages until ctx is done or the connection fails.
 // It returns ctx.Err() when canceled, otherwise the connection/read error.
-func (i *Ingester) RunOnce(ctx context.Context, url string) error {
+func (i *SessionIngester) RunOnce(ctx context.Context, url string) error {
 	conn, err := i.dialer.Dial(ctx, url)
 	if err != nil {
 		return fmt.Errorf("dial websocket: %w", err)
@@ -78,9 +64,47 @@ func (i *Ingester) RunOnce(ctx context.Context, url string) error {
 	}
 }
 
+// RetryingIngester maintains a resilient ingestion loop around a session runner,
+// reconnecting with exponential backoff + jitter.
+type RetryingIngester struct {
+	runner     SessionRunner
+	logger     *slog.Logger
+	baseDelay  time.Duration
+	maxDelay   time.Duration
+	jitter     func(time.Duration) time.Duration
+	sleep      func(context.Context, time.Duration) error
+	successMin time.Duration
+}
+
+// NewRetryingIngester creates a retrying ingester decorator.
+func NewRetryingIngester(runner SessionRunner, logger *slog.Logger) *RetryingIngester {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &RetryingIngester{
+		runner:     runner,
+		logger:     logger,
+		baseDelay:  100 * time.Millisecond,
+		maxDelay:   5 * time.Second,
+		successMin: time.Second,
+		jitter: func(d time.Duration) time.Duration {
+			if d <= 0 {
+				return 0
+			}
+			// Full jitter in [d/2, d] to avoid tight retry storms while keeping backoff bounded.
+			half := d / 2
+			if half <= 0 {
+				return d
+			}
+			return half + rand.N(d-half+1)
+		},
+		sleep: sleepWithContext,
+	}
+}
+
 // Run maintains a resilient ingestion loop, reconnecting with exponential backoff + jitter.
 // It returns when ctx is canceled.
-func (i *Ingester) Run(ctx context.Context, url string) error {
+func (i *RetryingIngester) Run(ctx context.Context, url string) error {
 	attempt := 0
 	for {
 		if ctx.Err() != nil {
@@ -88,7 +112,7 @@ func (i *Ingester) Run(ctx context.Context, url string) error {
 		}
 
 		connectedAt := time.Now()
-		err := i.RunOnce(ctx, url)
+		err := i.runner.RunOnce(ctx, url)
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return ctx.Err()
 		}
@@ -109,7 +133,7 @@ func (i *Ingester) Run(ctx context.Context, url string) error {
 	}
 }
 
-func (i *Ingester) backoffDelay(attempt int) time.Duration {
+func (i *RetryingIngester) backoffDelay(attempt int) time.Duration {
 	if attempt < 0 {
 		attempt = 0
 	}

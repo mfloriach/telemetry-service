@@ -2,13 +2,9 @@ package httpapi
 
 import (
 	"context"
-	"errors"
 
 	"server/internal/buffer"
 )
-
-// ErrInvalidLimit indicates the requested number of records is outside the allowed range.
-var ErrInvalidLimit = errors.New("n must be an integer between 1 and 100")
 
 // LatestSource provides the latest telemetry records.
 type LatestSource interface {
@@ -27,9 +23,6 @@ func NewService(source LatestSource) *Service {
 
 // Latest returns up to n latest telemetry payloads sorted by ts descending.
 func (s *Service) Latest(_ context.Context, n int) (LatestResponse, error) {
-	if n < 1 || n > 100 {
-		return nil, ErrInvalidLimit
-	}
 	records := s.source.Latest(n)
 	payloads := make(LatestResponse, 0, len(records))
 	for _, rec := range records {

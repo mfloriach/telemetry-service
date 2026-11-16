@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -64,10 +63,7 @@ func (h *Handler) handleLatest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		msg := "internal server error"
-		if errors.Is(err, ErrInvalidLimit) {
-			status = http.StatusBadRequest
-			msg = err.Error()
-		} else {
+		if err != nil {
 			h.logger.ErrorContext(r.Context(), "failed to fetch latest telemetry", "error", err)
 		}
 		writeError(w, status, msg)
