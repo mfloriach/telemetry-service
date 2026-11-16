@@ -53,7 +53,7 @@ func TestNewLogger_FormatSelectionAndLevel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
-			logger := NewLogger(tt.cfg, &buf, nil)
+			logger := NewLogger(tt.cfg.LogFormat, tt.cfg.LogLevel, &buf, nil)
 			tt.log(logger)
 			out := buf.String()
 			if strings.TrimSpace(out) == "" {
@@ -80,7 +80,7 @@ func TestNewLogger_RequestIDFromContext(t *testing.T) {
 
 	var buf bytes.Buffer
 	cfg := config.Config{LogLevel: "info", LogFormat: "json"}
-	logger := NewLogger(cfg, &buf, func(ctx context.Context) string {
+	logger := NewLogger(cfg.LogFormat, cfg.LogLevel, &buf, func(ctx context.Context) string {
 		v, _ := ctx.Value(key).(string)
 		return v
 	})
@@ -110,7 +110,7 @@ func TestNewLogger_WithoutRequestID(t *testing.T) {
 
 	var buf bytes.Buffer
 	cfg := config.Config{LogLevel: "info", LogFormat: "json"}
-	logger := NewLogger(cfg, &buf, func(context.Context) string { return "" })
+	logger := NewLogger(cfg.LogFormat, cfg.LogLevel, &buf, func(context.Context) string { return "" })
 	logger.InfoContext(context.Background(), "hello")
 
 	line := strings.TrimSpace(buf.String())

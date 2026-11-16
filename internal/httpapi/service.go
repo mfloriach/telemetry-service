@@ -3,7 +3,7 @@ package httpapi
 import (
 	"context"
 
-	"server/internal/buffer"
+	"server/internal/utils/buffer"
 )
 
 // LatestSource provides the latest telemetry records.

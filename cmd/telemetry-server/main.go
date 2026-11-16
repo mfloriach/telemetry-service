@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"server/internal/buffer"
 	"server/internal/config"
 	"server/internal/httpapi"
 	"server/internal/httpapi/middleware"
 	"server/internal/ingest"
-	"server/internal/logging"
+	"server/internal/utils/buffer"
+	"server/internal/utils/logging"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func run() error {
 		return err
 	}
 
-	logger := logging.NewLogger(cfg, os.Stdout, middleware.RequestIDFromContext)
+	logger := logging.NewLogger(cfg.LogFormat, cfg.LogLevel, os.Stdout, middleware.RequestIDFromContext)
 	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

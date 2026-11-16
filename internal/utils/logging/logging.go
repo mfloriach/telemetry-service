@@ -6,20 +6,18 @@ import (
 	"io"
 	"log/slog"
 	"strings"
-
-	"server/internal/config"
 )
 
 // RequestIDFromContext extracts a request/correlation ID from context.
 type RequestIDFromContext func(context.Context) string
 
 // NewLogger builds a configured slog logger and wraps it to include request IDs from context.
-func NewLogger(cfg config.Config, w io.Writer, requestID RequestIDFromContext) *slog.Logger {
-	level := parseLevel(cfg.LogLevel)
+func NewLogger(format string, logLevel string, w io.Writer, requestID RequestIDFromContext) *slog.Logger {
+	level := parseLevel(logLevel)
 	opts := &slog.HandlerOptions{Level: level}
 
 	var base slog.Handler
-	switch strings.ToLower(cfg.LogFormat) {
+	switch strings.ToLower(format) {
 	case "json":
 		base = slog.NewJSONHandler(w, opts)
 	default:

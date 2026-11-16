@@ -11,9 +11,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"server/internal/buffer"
 	"server/internal/httpapi"
 	"server/internal/ingest"
+	"server/internal/utils/buffer"
 )
 
 func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"server/internal/buffer"
+	"server/internal/utils/buffer"
 )
 
 type fakeDialer struct {

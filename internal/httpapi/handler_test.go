@@ -11,10 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"server/internal/buffer"
-	"server/internal/config"
 	"server/internal/httpapi/middleware"
-	"server/internal/logging"
+	"server/internal/utils/buffer"
+	"server/internal/utils/logging"
 )
 
 func TestHandleLatest(t *testing.T) {
@@ -172,7 +171,7 @@ func TestNewServer_RequestLogsIncludeRequestID(t *testing.T) {
 	buf.Add([]byte(`{"satellite":"AE1","ts":20}`))
 
 	var logBuf bytes.Buffer
-	logger := logging.NewLogger(config.Config{LogLevel: "info", LogFormat: "json"}, &logBuf, middleware.RequestIDFromContext)
+	logger := logging.NewLogger("json", "info", &logBuf, middleware.RequestIDFromContext)
 	srv := NewServer(":0", NewHandler(NewService(buf), logger), logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/telemetry/latest?n=1", nil)
