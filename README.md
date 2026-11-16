@@ -63,6 +63,47 @@ Example:
 curl "http://localhost:8080/telemetry/latest?n=5"
 ```
 
+## Development
+
+### Hot reload (Air)
+
+Install [Air](https://github.com/air-verse/air) and run:
+
+```bash
+air
+```
+
+Air uses `.air.toml` to rebuild and restart `./cmd/telemetry-server` on changes.
+
+### Pre-commit hooks (Lefthook)
+
+This project uses [Lefthook](https://github.com/evilmartians/lefthook) (Go-based git hooks manager) to run formatting checks, linting, and tests before commits.
+
+```bash
+# install lefthook (example)
+go install github.com/evilmartians/lefthook@latest
+
+# install git hooks
+lefthook install
+```
+
+Pre-commit runs `gofmt` checks, `golangci-lint run ./...`, and `go test -race ./...` (see `lefthook.yml`). Ensure `golangci-lint` is installed locally.
+
+### Docker
+
+Build and run with the multi-stage Dockerfile (uses BuildKit cache mounts):
+
+```bash
+docker build -t telemetry-server .
+docker run --rm -p 8080:8080 \
+  -e TELEMETRY_WS_URL=ws://host.docker.internal:9000/telemetry \
+  telemetry-server
+```
+
+### CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs formatting checks, `golangci-lint`, `go test -race ./...`, a build, and a Docker image build with GitHub Actions cache on pushes and pull requests.
+
 ## Notes
 
 - Buffering is in-memory only (latest 1000 records); data is not persisted across restarts.

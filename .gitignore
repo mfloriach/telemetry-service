@@ -1,0 +1,22 @@
+# Binaries
+/bin/
+/tmp/
+*.exe
+*.out
+
+# Environment
+.env
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Test/coverage
+coverage.out
+
+# Air
+tmp/
+build-errors.log
+
+# OS
+.DS_Store

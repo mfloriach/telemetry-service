@@ -1,0 +1,15 @@
+# Lefthook configuration (https://github.com/evilmartians/lefthook)
+# Install hooks: lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -l . | grep . && echo "gofmt found unformatted files" && exit 1 || exit 0
+    lint:
+      glob: "*.go"
+      run: golangci-lint run ./...
+    test:
+      glob: "*.go"
+      run: go test -race ./...

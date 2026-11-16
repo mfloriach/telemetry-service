@@ -63,9 +63,7 @@ func (h *Handler) handleLatest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		msg := "internal server error"
-		if err != nil {
-			h.logger.ErrorContext(r.Context(), "failed to fetch latest telemetry", "error", err)
-		}
+		h.logger.ErrorContext(r.Context(), "failed to fetch latest telemetry", "error", err)
 		writeError(w, status, msg)
 		return
 	}
