@@ -5,38 +5,59 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"sync"
 	"testing"
 	"time"
-
-	"github.com/coder/websocket"
 
 	"server/internal/httpapi"
 	"server/internal/ingest"
 	"server/internal/utils/buffer"
-	"server/internal/utils/ws"
+	"server/internal/utils/kafka"
 )
+
+// mockKafkaConsumer is a test double for kafka.Consumer used in e2e tests.
+type mockKafkaConsumer struct {
+	mu     sync.Mutex
+	msgs   [][]byte
+	index  int
+	err    error
+	done   chan struct{}
+}
+
+func (c *mockKafkaConsumer) Consume(ctx context.Context) ([]byte, error) {
+	c.mu.Lock()
+	if c.index >= len(c.msgs) {
+		c.mu.Unlock()
+		// Block until context is canceled
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	msg := c.msgs[c.index]
+	c.index++
+	c.mu.Unlock()
+	return msg, nil
+}
+
+func (c *mockKafkaConsumer) Close() error {
+	return nil
+}
+
+var _ kafka.Consumer = (*mockKafkaConsumer)(nil)
 
 func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Upstream WebSocket server that accepts one connection at a time and can drop clients.
-	acceptCh := make(chan *websocket.Conn, 4)
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := websocket.Accept(w, r, nil)
-		if err != nil {
-			return
-		}
-		acceptCh <- c
-		// Keep handler alive until test closes connection/server.
-		<-r.Context().Done()
-	}))
-	defer upstream.Close()
-	wsURL := "ws" + strings.TrimPrefix(upstream.URL, "http")
-
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	sessionIng := ingest.NewSessionIngester(ws.CoderDialer{}, buf)
+	consumer := &mockKafkaConsumer{
+		msgs: [][]byte{
+			[]byte(`{"satellite":"AE1","ts":100,"battery":1}`),
+			[]byte(`{"satellite":"AE1","ts":200,"battery":2}`),
+			[]byte(`{"satellite":"AE1","ts":150,"battery":1.5}`),
+			[]byte(`{"satellite":"AE1","ts":300,"battery":3}`),
+		},
+	}
+	sessionIng := ingest.NewSessionIngester(consumer, buf)
 	svc := httpapi.NewService(buf)
 	h := httpapi.NewHandler(svc, nil)
 	apiSrv := httptest.NewServer(httpapi.NewMux(h))
@@ -46,30 +67,10 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	defer ingestCancel()
 	ingestErr := make(chan error, 1)
 	go func() {
-		ingestErr <- sessionIng.Run(ingestCtx, wsURL)
+		ingestErr <- sessionIng.Run(ingestCtx)
 	}()
 
-	// First connection: send some records, then simulate disconnect.
-	var conn1 *websocket.Conn
-	select {
-	case conn1 = <-acceptCh:
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for first upstream connection")
-	}
-	writeJSON(ctx, t, conn1, `{"satellite":"AE1","ts":100,"battery":1}`)
-	writeJSON(ctx, t, conn1, `{"satellite":"AE1","ts":200,"battery":2}`)
-	waitForBuffered(ctx, t, buf, 2)
-	_ = conn1.Close(websocket.StatusInternalError, "simulated drop")
-
-	// Reconnect: ingester should establish a new connection.
-	var conn2 *websocket.Conn
-	select {
-	case conn2 = <-acceptCh:
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for reconnect to upstream")
-	}
-	writeJSON(ctx, t, conn2, `{"satellite":"AE1","ts":150,"battery":1.5}`)
-	writeJSON(ctx, t, conn2, `{"satellite":"AE1","ts":300,"battery":3}`)
+	// Wait for all messages to be buffered from the Kafka consumer.
 	waitForBuffered(ctx, t, buf, 4)
 
 	resp, err := http.Get(apiSrv.URL + "/telemetry/latest?n=3")
@@ -109,14 +110,6 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for ingester shutdown")
-	}
-	_ = conn2.Close(websocket.StatusNormalClosure, "test done")
-}
-
-func writeJSON(ctx context.Context, t *testing.T, c *websocket.Conn, payload string) {
-	t.Helper()
-	if err := c.Write(ctx, websocket.MessageText, []byte(payload)); err != nil {
-		t.Fatalf("write upstream message: %v", err)
 	}
 }
 

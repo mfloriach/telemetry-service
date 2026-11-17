@@ -17,8 +17,8 @@ import (
 	"server/internal/httpapi/middleware"
 	"server/internal/ingest"
 	"server/internal/utils/buffer"
+	"server/internal/utils/kafka"
 	"server/internal/utils/logging"
-	"server/internal/utils/ws"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.Load(os.Args[1:], os.Getenv, os.Stderr)
+	cfg, err := config.Load(os.Args[1:], os.Stderr)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,8 @@ func run() error {
 	defer stop()
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	sessionIng := ingest.NewSessionIngester(ws.CoderDialer{}, buf)
+	consumer := kafka.NewKafkaConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, "telemetry-ingest")
+	sessionIng := ingest.NewSessionIngester(consumer, buf)
 	svc := httpapi.NewService(buf)
 	handler := httpapi.NewHandler(svc, logger)
 	srv := httpapi.NewServer(cfg.HTTPAddr, handler, logger)
@@ -49,7 +50,7 @@ func run() error {
 	ingestDone := make(chan struct{})
 	go func() {
 		defer close(ingestDone)
-		if err := sessionIng.Run(ctx, cfg.TelemetryWSURL); err != nil && !errors.Is(err, context.Canceled) {
+		if err := sessionIng.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.ErrorContext(ctx, "ingestion stopped unexpectedly", "error", err)
 		}
 	}()

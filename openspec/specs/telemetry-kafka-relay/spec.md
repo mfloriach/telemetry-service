@@ -7,11 +7,13 @@ Define a standalone relay capability that publishes upstream telemetry records t
 ## Requirements
 
 ### Requirement: Relay ingests telemetry from a configured upstream WebSocket
-The relay SHALL connect to a configured upstream WebSocket telemetry source and read incoming JSON telemetry records for publishing.
 
-#### Scenario: Successful upstream connection and record intake
-- **WHEN** the relay starts with valid upstream WebSocket configuration
-- **THEN** it establishes a connection to the configured source and accepts incoming JSON telemetry records for publish processing
+The relay SHALL connect to a Kafka consumer group and read incoming telemetry records for processing.
+
+#### Scenario: Successful record intake from Kafka consumer
+
+- **WHEN** the relay starts with a valid Kafka consumer configuration
+- **THEN** it establishes a consumer group session and accepts incoming telemetry records for processing
 
 ### Requirement: Relay publishes telemetry records to Kafka
 The relay SHALL publish each ingested JSON telemetry record to a configured Kafka broker set and topic as a message whose value preserves the original record content.
@@ -28,11 +30,13 @@ The relay SHALL require configuration for the upstream WebSocket URL, Kafka brok
 - **THEN** startup fails and the relay reports which required configuration is missing or invalid
 
 ### Requirement: Relay restores upstream connectivity after instability
-The relay SHALL attempt to restore upstream WebSocket connectivity automatically after connection failures or disconnects using bounded retry delays, and SHALL resume publishing after reconnection.
 
-#### Scenario: Upstream disconnect during operation
-- **WHEN** an established upstream WebSocket connection is lost
-- **THEN** the relay retries the upstream connection and resumes reading and publishing telemetry records after reconnecting
+The relay SHALL rely on the Kafka consumer group's built-in rebalancing and recovery mechanisms to resume consumption after temporary failures, without requiring explicit WebSocket reconnection logic.
+
+#### Scenario: Consumer group rebalance during operation
+
+- **WHEN** a Kafka consumer group rebalance occurs
+- **THEN** the relay pauses consumption during rebalance and resumes reading records after partition assignment is restored
 
 ### Requirement: Local development environment provides Kafka via Compose
 The project SHALL provide a Docker Compose configuration that starts a local single-broker Kafka service in KRaft mode for relay development and testing.

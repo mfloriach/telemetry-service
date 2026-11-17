@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"server/internal/utils/ws"
+	"server/internal/utils/kafka"
 )
 
 // Buffer stores ingested telemetry payloads.
@@ -13,40 +13,36 @@ type Buffer interface {
 	Add(payload []byte)
 }
 
-// SessionIngester connects to an upstream WebSocket and appends received messages to a buffer
+// SessionIngester connects to an upstream Kafka consumer and appends received messages to a buffer
 // for a single session.
 type SessionIngester struct {
-	dialer ws.Dialer
-	buffer Buffer
+	consumer kafka.Consumer
+	buffer   Buffer
 }
 
 // NewSessionIngester creates a session ingester.
-func NewSessionIngester(dialer ws.Dialer, buffer Buffer) *SessionIngester {
+func NewSessionIngester(consumer kafka.Consumer, buffer Buffer) *SessionIngester {
 	return &SessionIngester{
-		dialer: dialer,
-		buffer: buffer,
+		consumer: consumer,
+		buffer:   buffer,
 	}
 }
 
-// RunOnce connects to url and reads messages until ctx is done or the connection fails.
-// It returns ctx.Err() when canceled, otherwise the connection/read error.
-func (i *SessionIngester) Run(ctx context.Context, url string) error {
-	conn, err := i.dialer.Dial(ctx, url)
-	if err != nil {
-		return fmt.Errorf("dial websocket: %w", err)
-	}
-	defer func() {
-		_ = conn.Close(1000, "closing")
-	}()
-
+// Run connects to a Kafka consumer and reads messages until ctx is done.
+// It returns ctx.Err() when canceled, otherwise the consumer read error.
+func (i *SessionIngester) Run(ctx context.Context) error {
 	for {
-		msg, err := conn.Read(ctx)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		msg, err := i.consumer.Consume(ctx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return ctx.Err()
 			}
-			return fmt.Errorf("read websocket: %w", err)
+			return fmt.Errorf("read kafka consumer: %w", err)
 		}
-		i.buffer.Add(msg.Data)
+		i.buffer.Add(msg)
 	}
 }

@@ -6,58 +6,70 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 const (
-	defaultHTTPAddr = ":8080"
-	defaultAppEnv   = "development"
-	defaultLogLevel = "info"
+	defaultHTTPAddr   = ":8080"
+	defaultAppEnv     = "development"
+	defaultLogLevel   = "info"
+	defaultKafkaTopic = "telemetry.raw"
 )
 
 // Config holds runtime configuration for the telemetry server.
 type Config struct {
-	TelemetryWSURL string `validate:"required"`
-	HTTPAddr       string `validate:"required"`
-	AppEnv         string `validate:"required"`
-	LogLevel       string `validate:"required,oneof=debug info warn error"`
-	LogFormat      string `validate:"required,oneof=json text"`
+	TelemetryWSURL string   `env:"TELEMETRY_WS_URL" validate:"required"`
+	KafkaBrokers   []string `env:"KAFKA_BROKERS" validate:"required,min=1,dive,required"`
+	KafkaTopic     string   `env:"KAFKA_TOPIC" env-default:"telemetry.raw" validate:"required"`
+	HTTPAddr       string   `env:"HTTP_ADDR" env-default:":8080" validate:"required"`
+	AppEnv         string   `env:"APP_ENV" env-default:"development" validate:"required"`
+	LogLevel       string   `env:"LOG_LEVEL" env-default:"info" validate:"required,oneof=debug info warn error"`
+	LogFormat      string   `env:"LOG_FORMAT" validate:"required,oneof=json text"`
 }
 
 // Load reads configuration from environment variables and command-line flags.
 // Flags take precedence over environment variables.
 // HTTPAddr defaults to ":8080". AppEnv defaults to "development".
 // LogLevel defaults to "info". LogFormat defaults from AppEnv unless explicitly set.
-func Load(args []string, getenv func(string) string, out io.Writer) (Config, error) {
-	if getenv == nil {
-		getenv = os.Getenv
-	}
+func Load(args []string, out io.Writer) (Config, error) {
 	if out == nil {
 		out = io.Discard
+	}
+
+	var cfg Config
+
+	// Load environment variables and defaults.
+	if err := cleanenv.ReadEnv(&cfg); err != nil {
+		return Config{}, fmt.Errorf("load environment: %w", err)
 	}
 
 	fs := flag.NewFlagSet("telemetry-server", flag.ContinueOnError)
 	fs.SetOutput(out)
 
-	wsURLFlag := fs.String("telemetry-ws-url", "", "WebSocket URL for upstream telemetry source")
-	httpAddrFlag := fs.String("http-addr", "", "HTTP listen address (default :8080)")
-	appEnvFlag := fs.String("app-env", "", "Application environment (default development)")
-	logLevelFlag := fs.String("log-level", "", "Log level: debug, info, warn, error (default info)")
-	logFormatFlag := fs.String("log-format", "", "Log format: json or text (default derived from APP_ENV)")
+	wsURL := fs.String("telemetry-ws-url", cfg.TelemetryWSURL, "Upstream WebSocket URL")
+	brokers := fs.String("kafka-brokers", strings.Join(cfg.KafkaBrokers, ","), "Kafka bootstrap brokers")
+	topic := fs.String("kafka-topic", cfg.KafkaTopic, "Kafka topic")
+	httpAddr := fs.String("http-addr", cfg.HTTPAddr, "HTTP listen address")
+	appEnv := fs.String("app-env", cfg.AppEnv, "Application environment")
+	logLevel := fs.String("log-level", cfg.LogLevel, "Log level")
+	logFormat := fs.String("log-format", cfg.LogFormat, "Log format")
+
 	if err := fs.Parse(args); err != nil {
 		return Config{}, fmt.Errorf("parse flags: %w", err)
 	}
 
-	cfg := Config{
-		TelemetryWSURL: strings.TrimSpace(firstNonEmpty(*wsURLFlag, getenv("TELEMETRY_WS_URL"))),
-		HTTPAddr:       strings.TrimSpace(firstNonEmpty(*httpAddrFlag, getenv("HTTP_ADDR"), defaultHTTPAddr)),
-		AppEnv:         strings.ToLower(strings.TrimSpace(firstNonEmpty(*appEnvFlag, getenv("APP_ENV"), defaultAppEnv))),
-		LogLevel:       strings.ToLower(strings.TrimSpace(firstNonEmpty(*logLevelFlag, getenv("LOG_LEVEL"), defaultLogLevel))),
-		LogFormat:      strings.ToLower(strings.TrimSpace(firstNonEmpty(*logFormatFlag, getenv("LOG_FORMAT")))),
-	}
+	// Flags override environment variables.
+	cfg.TelemetryWSURL = strings.TrimSpace(*wsURL)
+	cfg.KafkaBrokers = splitCSV(*brokers)
+	cfg.KafkaTopic = strings.TrimSpace(*topic)
+	cfg.HTTPAddr = strings.TrimSpace(*httpAddr)
+	cfg.AppEnv = strings.ToLower(strings.TrimSpace(*appEnv))
+	cfg.LogLevel = strings.ToLower(strings.TrimSpace(*logLevel))
+	cfg.LogFormat = strings.ToLower(strings.TrimSpace(*logFormat))
+
 	if cfg.LogFormat == "" {
 		cfg.LogFormat = defaultLogFormat(cfg.AppEnv)
 	}
@@ -71,22 +83,27 @@ func Load(args []string, getenv func(string) string, out io.Writer) (Config, err
 
 func validateConfig(cfg Config) error {
 	v := validator.New(validator.WithRequiredStructEnabled())
+
 	if err := v.Struct(cfg); err != nil {
-		var verrs validator.ValidationErrors
-		if errors.As(err, &verrs) {
-			for _, fe := range verrs {
-				switch fe.Field() {
-				case "TelemetryWSURL":
-					return errors.New("TELEMETRY_WS_URL is required (set env var or -telemetry-ws-url)")
-				case "LogLevel":
-					return fmt.Errorf("invalid LOG_LEVEL %q: must be one of debug, info, warn, error", cfg.LogLevel)
-				case "LogFormat":
-					return fmt.Errorf("invalid LOG_FORMAT %q: must be one of json, text", cfg.LogFormat)
-				}
-			}
+		var validationErrors validator.ValidationErrors
+		if !errors.As(err, &validationErrors) {
+			return fmt.Errorf("validate config: %w", err)
 		}
-		return fmt.Errorf("invalid config: %w", err)
+
+		fieldNames := map[string]string{
+			"TelemetryWSURL": "TELEMETRY_WS_URL",
+			"KafkaBrokers":   "KAFKA_BROKERS",
+			"KafkaTopic":     "KAFKA_TOPIC",
+			"HTTPAddr":       "HTTP_ADDR",
+			"AppEnv":         "APP_ENV",
+			"LogLevel":       "LOG_LEVEL",
+			"LogFormat":      "LOG_FORMAT",
+		}
+
+		fe := validationErrors[0]
+		return fmt.Errorf("%s: validation failed (%s)", fieldNames[fe.Field()], fe.Tag())
 	}
+
 	return nil
 }
 
@@ -97,11 +114,15 @@ func defaultLogFormat(appEnv string) string {
 	return "text"
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
+func splitCSV(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
 	}
-	return ""
+
+	parts := strings.Split(value, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+
+	return parts
 }
