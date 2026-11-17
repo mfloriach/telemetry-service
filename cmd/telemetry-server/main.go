@@ -16,6 +16,7 @@ import (
 	"server/internal/httpapi"
 	"server/internal/httpapi/middleware"
 	"server/internal/ingest"
+	"server/internal/utils"
 	"server/internal/utils/buffer"
 	"server/internal/utils/logging"
 )
@@ -41,7 +42,7 @@ func run() error {
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
 	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, logger)
-	ing := ingest.NewRetryingIngester(sessionIng, logger)
+	ing := utils.NewRetryingIngester(sessionIng, logger)
 	svc := httpapi.NewService(buf)
 	handler := httpapi.NewHandler(svc, logger)
 	srv := httpapi.NewServer(cfg.HTTPAddr, handler, logger)

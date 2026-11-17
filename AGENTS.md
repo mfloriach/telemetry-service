@@ -24,6 +24,7 @@ Run these commands to verify changes before finishing a task:
 - **Context:** Always pass `ctx context.Context` as the first parameter to functions performing I/O or network calls.
 - **Validation:** Always validate on the extrems never in the intermedite steps.
 - **Logs:**: Always json in production and text on dev and allow to configure the log level, moreover all logs needs to have the context assgigned.
+- Always implement third-party integrations through configuration-driven adapters, keeping provider-specific implementations isolated behind application-owned interfaces so providers can be switched without changing business logic.
 
 ## Testing Guidelines
 - Write table-driven tests for functions with multiple input/output cases.

@@ -21,3 +21,5 @@ build-errors.log
 # OS
 .DS_Store
 telemetry-server
+# OpenSpec change worktrees
+/.worktrees/

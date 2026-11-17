@@ -13,6 +13,7 @@ import (
 
 	"server/internal/httpapi"
 	"server/internal/ingest"
+	"server/internal/utils"
 	"server/internal/utils/buffer"
 )
 
@@ -36,7 +37,7 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
 	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, nil)
-	ing := ingest.NewRetryingIngester(sessionIng, nil)
+	ing := utils.NewRetryingIngester(sessionIng, nil)
 	svc := httpapi.NewService(buf)
 	h := httpapi.NewHandler(svc, nil)
 	apiSrv := httptest.NewServer(httpapi.NewMux(h))

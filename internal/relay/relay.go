@@ -7,61 +7,16 @@ import (
 	"log/slog"
 	"math"
 	"math/rand/v2"
-	"strings"
 	"time"
 
-	"github.com/segmentio/kafka-go"
-
 	"server/internal/ingest"
+	"server/internal/utils"
 )
-
-// Publisher publishes a telemetry record value to Kafka.
-type Publisher interface {
-	Publish(ctx context.Context, value []byte) error
-	Close() error
-}
-
-// KafkaPublisher publishes messages to a Kafka topic using segmentio/kafka-go.
-type KafkaPublisher struct {
-	writer *kafka.Writer
-}
-
-// NewKafkaPublisher creates a Kafka publisher for the given brokers and topic.
-func NewKafkaPublisher(brokers []string, topic string) (*KafkaPublisher, error) {
-	if len(brokers) == 0 {
-		return nil, errors.New("at least one Kafka broker is required")
-	}
-	if strings.TrimSpace(topic) == "" {
-		return nil, errors.New("Kafka topic is required")
-	}
-	w := &kafka.Writer{
-		Addr:     kafka.TCP(brokers...),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
-	}
-	return &KafkaPublisher{writer: w}, nil
-}
-
-// Publish writes a message with the provided value to the configured topic.
-func (p *KafkaPublisher) Publish(ctx context.Context, value []byte) error {
-	if p == nil || p.writer == nil {
-		return errors.New("kafka publisher is not initialized")
-	}
-	return p.writer.WriteMessages(ctx, kafka.Message{Value: value})
-}
-
-// Close closes the underlying Kafka writer.
-func (p *KafkaPublisher) Close() error {
-	if p == nil || p.writer == nil {
-		return nil
-	}
-	return p.writer.Close()
-}
 
 // Runner consumes telemetry records from an upstream WebSocket and publishes them to Kafka.
 type Runner struct {
 	dialer     ingest.Dialer
-	publisher  Publisher
+	publisher  utils.Publisher
 	logger     *slog.Logger
 	baseDelay  time.Duration
 	maxDelay   time.Duration
@@ -71,7 +26,7 @@ type Runner struct {
 }
 
 // NewRunner creates a relay runner.
-func NewRunner(dialer ingest.Dialer, publisher Publisher, logger *slog.Logger) *Runner {
+func NewRunner(dialer ingest.Dialer, publisher utils.Publisher, logger *slog.Logger) *Runner {
 	if logger == nil {
 		logger = slog.Default()
 	}

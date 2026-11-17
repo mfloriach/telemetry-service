@@ -12,6 +12,7 @@ import (
 
 	"server/internal/ingest"
 	"server/internal/relay"
+	"server/internal/utils"
 	"server/internal/utils/logging"
 )
 
@@ -39,7 +40,7 @@ func run() error {
 		return errors.New("KAFKA_BROKERS is required (set env var or -kafka-brokers)")
 	}
 
-	publisher, err := relay.NewKafkaPublisher(brokers, cfg.KafkaTopic)
+	publisher, err := utils.NewKafkaPublisher(brokers, cfg.KafkaTopic)
 	if err != nil {
 		return fmt.Errorf("create kafka publisher: %w", err)
 	}

@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
+	"time"
+
+	"server/internal/utils"
 )
 
 // Buffer stores ingested telemetry payloads.
@@ -54,4 +58,21 @@ func (i *SessionIngester) RunOnce(ctx context.Context, url string) error {
 		}
 		i.buffer.Add(msg.Data)
 	}
+}
+
+// RunWithRetry runs the session ingester with exponential backoff + jitter retry.
+// It uses the utils retry mechanism and returns when ctx is canceled.
+func (i *SessionIngester) RunWithRetry(ctx context.Context, url string) error {
+	return utils.WithRetry(ctx, func(ctx context.Context) error {
+		return i.RunOnce(ctx, url)
+	}, 100*time.Millisecond, 5*time.Second, func(d time.Duration) time.Duration {
+		if d <= 0 {
+			return 0
+		}
+		half := d / 2
+		if half <= 0 {
+			return d
+		}
+		return half + rand.N(d-half+1) //nolint:gosec // non-cryptographic jitter for reconnect backoff
+	}, time.Second)
 }
