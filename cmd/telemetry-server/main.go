@@ -16,9 +16,9 @@ import (
 	"server/internal/httpapi"
 	"server/internal/httpapi/middleware"
 	"server/internal/ingest"
-	"server/internal/utils"
 	"server/internal/utils/buffer"
 	"server/internal/utils/logging"
+	"server/internal/utils/ws"
 )
 
 func main() {
@@ -41,8 +41,7 @@ func run() error {
 	defer stop()
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, logger)
-	ing := utils.NewRetryingIngester(sessionIng, logger)
+	sessionIng := ingest.NewSessionIngester(ws.CoderDialer{}, buf)
 	svc := httpapi.NewService(buf)
 	handler := httpapi.NewHandler(svc, logger)
 	srv := httpapi.NewServer(cfg.HTTPAddr, handler, logger)
@@ -50,7 +49,7 @@ func run() error {
 	ingestDone := make(chan struct{})
 	go func() {
 		defer close(ingestDone)
-		if err := ing.Run(ctx, cfg.TelemetryWSURL); err != nil && !errors.Is(err, context.Canceled) {
+		if err := sessionIng.Run(ctx, cfg.TelemetryWSURL); err != nil && !errors.Is(err, context.Canceled) {
 			logger.ErrorContext(ctx, "ingestion stopped unexpectedly", "error", err)
 		}
 	}()

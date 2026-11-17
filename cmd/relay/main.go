@@ -10,10 +10,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"server/internal/ingest"
 	"server/internal/relay"
-	"server/internal/utils"
+	"server/internal/utils/kafka"
 	"server/internal/utils/logging"
+	"server/internal/utils/ws"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func run() error {
 		return errors.New("KAFKA_BROKERS is required (set env var or -kafka-brokers)")
 	}
 
-	publisher, err := utils.NewKafkaPublisher(brokers, cfg.KafkaTopic)
+	publisher, err := kafka.NewKafkaPublisher(brokers, cfg.KafkaTopic)
 	if err != nil {
 		return fmt.Errorf("create kafka publisher: %w", err)
 	}
@@ -50,13 +50,13 @@ func run() error {
 		}
 	}()
 
-	runner := relay.NewRunner(ingest.CoderDialer{}, publisher, logger)
+	runner := relay.NewRunner(ws.CoderDialer{}, publisher)
 	logger.InfoContext(ctx, "telemetry relay starting", "url", cfg.TelemetryWSURL, "topic", cfg.KafkaTopic, "brokers", brokers)
 
 	if err := runner.Run(ctx, cfg.TelemetryWSURL); err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("relay: %w", err)
 	}
 
-	logger.InfoContext(context.Background(), "telemetry relay stopped")
+	logger.InfoContext(ctx, "telemetry relay stopped")
 	return nil
 }

@@ -1,11 +1,9 @@
-package utils
+package kafka
 
 import (
 	"context"
 	"errors"
-	"math/rand/v2"
 	"strings"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -40,18 +38,7 @@ func NewKafkaPublisher(brokers []string, topic string) (*kafkaPublisher, error) 
 // Publish writes a message with the provided value to the configured topic.
 // It retries with exponential backoff + jitter on failure.
 func (p *kafkaPublisher) Publish(ctx context.Context, value []byte) error {
-	return WithRetry(ctx, func(ctx context.Context) error {
-		return p.writer.WriteMessages(ctx, kafka.Message{Value: value})
-	}, 100*time.Millisecond, 5*time.Second, func(d time.Duration) time.Duration {
-		if d <= 0 {
-			return 0
-		}
-		half := d / 2
-		if half <= 0 {
-			return d
-		}
-		return half + rand.N(d-half+1) //nolint:gosec // non-cryptographic jitter for reconnect backoff
-	}, time.Second)
+	return p.writer.WriteMessages(ctx, kafka.Message{Value: value})
 }
 
 // Close closes the underlying Kafka writer.

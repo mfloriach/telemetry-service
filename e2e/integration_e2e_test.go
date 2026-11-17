@@ -13,8 +13,8 @@ import (
 
 	"server/internal/httpapi"
 	"server/internal/ingest"
-	"server/internal/utils"
 	"server/internal/utils/buffer"
+	"server/internal/utils/ws"
 )
 
 func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
@@ -36,8 +36,7 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(upstream.URL, "http")
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	sessionIng := ingest.NewSessionIngester(ingest.CoderDialer{}, buf, nil)
-	ing := utils.NewRetryingIngester(sessionIng, nil)
+	sessionIng := ingest.NewSessionIngester(ws.CoderDialer{}, buf)
 	svc := httpapi.NewService(buf)
 	h := httpapi.NewHandler(svc, nil)
 	apiSrv := httptest.NewServer(httpapi.NewMux(h))
@@ -47,7 +46,7 @@ func TestEndToEnd_IngestReconnectAndQuery(t *testing.T) {
 	defer ingestCancel()
 	ingestErr := make(chan error, 1)
 	go func() {
-		ingestErr <- ing.Run(ingestCtx, wsURL)
+		ingestErr <- sessionIng.Run(ingestCtx, wsURL)
 	}()
 
 	// First connection: send some records, then simulate disconnect.

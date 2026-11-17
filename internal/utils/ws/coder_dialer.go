@@ -1,5 +1,4 @@
-// Package ingest connects to the upstream telemetry WebSocket and buffers records.
-package ingest
+package ws
 
 import (
 	"context"
