@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"server/internal/httpapi/middleware"
-	"server/internal/utils/buffer"
-	"server/internal/utils/logging"
+	"server/internal/telemetry/httpapi/middleware"
+	"server/pkg/buffer"
+	"server/pkg/logging"
 )
 
 func TestHandleLatest(t *testing.T) {

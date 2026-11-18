@@ -6,13 +6,6 @@ import (
 	segkafka "github.com/segmentio/kafka-go"
 )
 
-// Consumer consumes messages from a Kafka topic.
-type Consumer interface {
-	Consume(ctx context.Context) ([]byte, error)
-	Close() error
-}
-
-// kafkaConsumerAdapter wraps kafka-go's Reader to implement kafka.Consumer.
 type kafkaConsumerAdapter struct {
 	reader *segkafka.Reader
 }

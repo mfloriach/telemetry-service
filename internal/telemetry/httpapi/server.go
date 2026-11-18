@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"server/internal/httpapi/middleware"
+	"server/internal/telemetry/httpapi/middleware"
 )
 
 // NewMux creates an HTTP mux with telemetry routes registered.

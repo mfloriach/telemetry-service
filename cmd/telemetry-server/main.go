@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"server/internal/config"
-	"server/internal/httpapi"
-	"server/internal/httpapi/middleware"
-	"server/internal/ingest"
-	"server/internal/utils/buffer"
-	"server/internal/utils/kafka"
-	"server/internal/utils/logging"
+	"server/internal/telemetry/config"
+	"server/internal/telemetry/httpapi"
+	"server/internal/telemetry/httpapi/middleware"
+	"server/internal/telemetry/ingest"
+	"server/pkg/buffer"
+	"server/pkg/kafka"
+	"server/pkg/logging"
 )
 
 func main() {

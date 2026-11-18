@@ -4,50 +4,62 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"server/internal/utils/kafka"
-	"server/internal/utils/ws"
 )
 
-// Runner consumes telemetry records from an upstream WebSocket and publishes them to Kafka.
-type runner struct {
-	dialer    ws.Dialer
-	publisher kafka.Publisher
+type Publisher interface {
+	Publish(ctx context.Context, value []byte) error
+	Close() error
 }
 
-// NewRunner creates a relay runner.
-func NewRunner(dialer ws.Dialer, publisher kafka.Publisher) *runner {
+type MessageType int
+
+const (
+	MessageText MessageType = iota + 1
+	MessageBinary
+)
+
+type Message struct {
+	Type MessageType
+	Data []byte
+}
+
+type Conn interface {
+	Read(ctx context.Context) (Message, error)
+	Close(code int, reason string) error
+}
+
+type runner struct {
+	conn      Conn
+	publisher Publisher
+}
+
+func NewRunner(conn Conn, publisher Publisher) *runner {
 	return &runner{
-		dialer:    dialer,
+		conn:      conn,
 		publisher: publisher,
 	}
 }
 
-// Run maintains the relay loop until ctx is canceled.
-func (r *runner) Run(ctx context.Context, wsURL string) error {
+func (r *runner) Run(ctx context.Context) error {
+	defer func() {
+		_ = r.conn.Close(1000, "relay stopping")
+	}()
+
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
-		err := r.runOnce(ctx, wsURL)
+		err := r.runOnce(ctx)
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return ctx.Err()
 		}
 	}
 }
 
-func (r *runner) runOnce(ctx context.Context, wsURL string) error {
-	conn, err := r.dialer.Dial(ctx, wsURL)
-	if err != nil {
-		return fmt.Errorf("dial upstream websocket: %w", err)
-	}
-	defer func() {
-		_ = conn.Close(1000, "relay stopping")
-	}()
-
+func (r *runner) runOnce(ctx context.Context) error {
 	for {
-		msg, err := conn.Read(ctx)
+		msg, err := r.conn.Read(ctx)
 		if err != nil {
 			return err
 		}

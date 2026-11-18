@@ -21,7 +21,6 @@ const (
 
 // Config holds runtime configuration for the telemetry server.
 type Config struct {
-	TelemetryWSURL string   `env:"TELEMETRY_WS_URL" validate:"required"`
 	KafkaBrokers   []string `env:"KAFKA_BROKERS" validate:"required,min=1,dive,required"`
 	KafkaTopic     string   `env:"KAFKA_TOPIC" env-default:"telemetry.raw" validate:"required"`
 	HTTPAddr       string   `env:"HTTP_ADDR" env-default:":8080" validate:"required"`
@@ -49,7 +48,6 @@ func Load(args []string, out io.Writer) (Config, error) {
 	fs := flag.NewFlagSet("telemetry-server", flag.ContinueOnError)
 	fs.SetOutput(out)
 
-	wsURL := fs.String("telemetry-ws-url", cfg.TelemetryWSURL, "Upstream WebSocket URL")
 	brokers := fs.String("kafka-brokers", strings.Join(cfg.KafkaBrokers, ","), "Kafka bootstrap brokers")
 	topic := fs.String("kafka-topic", cfg.KafkaTopic, "Kafka topic")
 	httpAddr := fs.String("http-addr", cfg.HTTPAddr, "HTTP listen address")
@@ -62,7 +60,6 @@ func Load(args []string, out io.Writer) (Config, error) {
 	}
 
 	// Flags override environment variables.
-	cfg.TelemetryWSURL = strings.TrimSpace(*wsURL)
 	cfg.KafkaBrokers = splitCSV(*brokers)
 	cfg.KafkaTopic = strings.TrimSpace(*topic)
 	cfg.HTTPAddr = strings.TrimSpace(*httpAddr)
@@ -91,7 +88,6 @@ func validateConfig(cfg Config) error {
 		}
 
 		fieldNames := map[string]string{
-			"TelemetryWSURL": "TELEMETRY_WS_URL",
 			"KafkaBrokers":   "KAFKA_BROKERS",
 			"KafkaTopic":     "KAFKA_TOPIC",
 			"HTTPAddr":       "HTTP_ADDR",

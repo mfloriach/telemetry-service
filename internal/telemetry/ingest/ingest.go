@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"server/internal/utils/kafka"
 )
+
+type Consumer interface {
+	Consume(ctx context.Context) ([]byte, error)
+	Close() error
+}
 
 // Buffer stores ingested telemetry payloads.
 type Buffer interface {
@@ -16,12 +19,12 @@ type Buffer interface {
 // SessionIngester connects to an upstream Kafka consumer and appends received messages to a buffer
 // for a single session.
 type SessionIngester struct {
-	consumer kafka.Consumer
+	consumer Consumer
 	buffer   Buffer
 }
 
 // NewSessionIngester creates a session ingester.
-func NewSessionIngester(consumer kafka.Consumer, buffer Buffer) *SessionIngester {
+func NewSessionIngester(consumer Consumer, buffer Buffer) *SessionIngester {
 	return &SessionIngester{
 		consumer: consumer,
 		buffer:   buffer,
