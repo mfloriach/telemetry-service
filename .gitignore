@@ -26,8 +26,12 @@ telemetry-server
 
 # Terraform / OpenTofu
 **/.terraform/
+**/.terraform-estimate/
 *.tfstate
 *.tfstate.*
 tfplan
 plan.json
 crash.log
+tf_estimate_override.tf
+.commandcode/
+.agents

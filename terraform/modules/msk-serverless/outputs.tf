@@ -9,7 +9,7 @@ output "msk_cluster_name" {
 }
 
 output "msk_bootstrap_brokers" {
-  value       = aws_msk_serverless_cluster.this.bootstrap_brokers_tls
-  description = "TLS bootstrap brokers for the MSK cluster"
+  value       = aws_msk_serverless_cluster.this.bootstrap_brokers_sasl_iam
+  description = "SASL/IAM bootstrap brokers for the MSK Serverless cluster"
   sensitive   = false
 }

@@ -43,7 +43,6 @@ module "iam" {
 
   name_prefix     = local.name_prefix
   aws_region      = var.aws_region
-  aws_account_id  = data.aws_caller_identity.current.account_id
   msk_cluster_arn = module.msk_serverless.msk_cluster_arn
 }
 
@@ -71,8 +70,6 @@ module "ecs_fargate_relay" {
   log_level                       = var.log_level
   desired_count                   = var.relay_desired_count
 }
-
-data "aws_caller_identity" "current" {}
 
 # Lambda function: telemetry-server container image
 resource "aws_lambda_function" "telemetry_server" {

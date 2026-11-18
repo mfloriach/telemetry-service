@@ -1,0 +1,55 @@
+resource,kind,dimension,quantity,unit,unit_rate,monthly_cost,source,currency
+aws_lambda_function.telemetry_server,aws_lambda_function,Requests,1000000,requests,0.0000002,0.2,live,USD
+aws_lambda_function.telemetry_server,aws_lambda_function,Duration,100000,GB-seconds,0.0000166667,1.67,live,USD
+aws_lambda_function_url.http_endpoint,aws_lambda_function_url,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_vpc.this,aws_vpc,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_internet_gateway.this,aws_internet_gateway,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[0],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[1],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[2],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[0],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[1],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[2],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_eip.nat[0],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_eip.nat[1],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_eip.nat[2],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_nat_gateway.this[0],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[0],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_nat_gateway.this[1],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[1],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_nat_gateway.this[2],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[2],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_route_table.public,aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[0],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[1],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[2],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[0],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[1],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[2],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[0],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[1],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[2],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.security_groups.aws_security_group.msk,aws_security_group,Free resource,0,n/a,0,0,static,USD
+module.security_groups.aws_security_group.lambda,aws_security_group,Free resource,0,n/a,0,0,static,USD
+module.security_groups.aws_security_group.fargate_relay,aws_security_group,Free resource,0,n/a,0,0,static,USD
+module.msk_serverless.aws_msk_serverless_cluster.this,aws_msk_serverless_cluster,Cluster,730,hours,0.75,547.5,live,USD
+module.msk_serverless.aws_msk_serverless_cluster.this,aws_msk_serverless_cluster,Partitions,730,partition-hours,0.0015,1.1,live,USD
+module.iam.aws_iam_role.lambda_execution,aws_iam_role,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy_attachment.lambda_execution_basic,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy_attachment.lambda_execution_ecr,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy_attachment.lambda_execution_vpc,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy.lambda_msk,aws_iam_role_policy,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role.fargate_task_execution,aws_iam_role,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy_attachment.fargate_task_execution_basic,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role.fargate_task,aws_iam_role,Free resource,0,n/a,0,0,static,USD
+module.iam.aws_iam_role_policy.fargate_task_msk,aws_iam_role_policy,Free resource,0,n/a,0,0,static,USD
+module.ecr.aws_ecr_repository.telemetry_server,aws_ecr_repository,Image storage,5,GB-month,0.1,0.5,live,USD
+module.ecr.aws_ecr_repository.telemetry_relay,aws_ecr_repository,Image storage,5,GB-month,0.1,0.5,live,USD
+module.ecs_fargate_relay.aws_ecs_cluster.this,aws_ecs_cluster,Free resource,0,n/a,0,0,static,USD
+module.ecs_fargate_relay.aws_ecs_task_definition.relay,aws_ecs_task_definition,Free resource,0,n/a,0,0,static,USD
+module.ecs_fargate_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Data ingested,5,GB,0.5,2.5,live,USD
+module.ecs_fargate_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Data stored (archive),5,GB-month,0.03,0.15,live,USD
+module.ecs_fargate_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Logs Insights queries,0,GB scanned,0.005,0,live,USD
+module.ecs_fargate_relay.aws_ecs_service.relay,aws_ecs_service,Fargate vCPU,182.5,vCPU-hours,0.04048,7.39,live,USD
+module.ecs_fargate_relay.aws_ecs_service.relay,aws_ecs_service,Fargate memory,365,GB-hours,0.004445,1.62,live,USD
+PROJECT,,TOTAL,,,,672.63,,USD

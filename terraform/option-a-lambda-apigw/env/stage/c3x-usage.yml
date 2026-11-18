@@ -1,0 +1,30 @@
+# Shared C3X usage assumptions used by `make tf-estimate`.
+#
+# Variable-cost resources cannot be priced from the Terraform plan alone, so
+# these are explicit dev-sized monthly assumptions. Override per resource or
+# copy this file into env/<env>/ when an environment needs different numbers.
+version: 0.1
+
+resource_usage:
+  aws_apigatewayv2_api.http_api:
+    monthly_requests: 1000000
+
+  aws_lambda_function.telemetry_server:
+    monthly_requests: 1000000
+    request_duration_ms: 200
+
+  module.ecr.aws_ecr_repository.telemetry_server:
+    monthly_storage_gb: 5
+
+  module.ecr.aws_ecr_repository.telemetry_relay:
+    monthly_storage_gb: 5
+
+  module.ecs_fargate_relay.aws_cloudwatch_log_group.relay:
+    monthly_data_ingested_gb: 5
+    monthly_data_stored_gb: 5
+    monthly_data_scanned_gb: 0
+
+  module.msk_serverless.aws_msk_serverless_cluster.this:
+    monthly_data_ingested_gb: 50
+    monthly_data_stored_gb: 50
+    monthly_data_scanned_gb: 50

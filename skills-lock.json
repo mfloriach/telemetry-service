@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "skills": {
+    "stack-diagram": {
+      "source": "caru-ini/stack-diagram",
+      "commit": "85ff93b92f69bf400337b9d9edc310650493ee59",
+      "sourceType": "github",
+      "skillPath": "skills/stack-diagram/SKILL.md",
+      "computedHash": "1b886952f5427766a3206903092acb572ecd3c49b39c10f1e01cb136236ff6c2",
+      "installMode": "copy"
+    }
+  }
+}

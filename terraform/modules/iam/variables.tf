@@ -8,11 +8,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "aws_account_id" {
-  description = "AWS account ID"
-  type        = string
-}
-
 variable "msk_cluster_arn" {
   description = "ARN of the MSK Serverless cluster"
   type        = string
