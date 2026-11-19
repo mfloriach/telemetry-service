@@ -6,14 +6,9 @@ import (
 	"github.com/coder/websocket"
 )
 
-type Conn interface {
-	Read(ctx context.Context) (websocket.MessageType, []byte, error)
-	Close(code int, reason string) error
-}
-
 type CoderDialer struct{}
 
-func (CoderDialer) Dial(ctx context.Context, url string) (Conn, error) {
+func (CoderDialer) Dial(ctx context.Context, url string) (*coderConn, error) {
 	c, _, err := websocket.Dial(ctx, url, nil)
 	if err != nil {
 		return nil, err
@@ -25,8 +20,9 @@ type coderConn struct {
 	conn *websocket.Conn
 }
 
-func (c *coderConn) Read(ctx context.Context) (websocket.MessageType, []byte, error) {
-	return c.conn.Read(ctx)
+func (c *coderConn) Read(ctx context.Context) (string, []byte, error) {
+	message_type, msg, err := c.conn.Read(ctx)
+	return message_type.String(), msg, err
 }
 
 func (c *coderConn) Close(code int, reason string) error {

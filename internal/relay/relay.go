@@ -11,20 +11,8 @@ type Publisher interface {
 	Close() error
 }
 
-type MessageType int
-
-const (
-	MessageText MessageType = iota + 1
-	MessageBinary
-)
-
-type Message struct {
-	Type MessageType
-	Data []byte
-}
-
 type Conn interface {
-	Read(ctx context.Context) (Message, error)
+	Read(ctx context.Context) (string, []byte, error)
 	Close(code int, reason string) error
 }
 
@@ -59,12 +47,12 @@ func (r *runner) Run(ctx context.Context) error {
 
 func (r *runner) runOnce(ctx context.Context) error {
 	for {
-		msg, err := r.conn.Read(ctx)
+		_, msg, err := r.conn.Read(ctx)
 		if err != nil {
 			return err
 		}
 
-		if err := r.publisher.Publish(ctx, msg.Data); err != nil {
+		if err := r.publisher.Publish(ctx, msg); err != nil {
 			return fmt.Errorf("publish telemetry record to kafka: %w", err)
 		}
 	}
