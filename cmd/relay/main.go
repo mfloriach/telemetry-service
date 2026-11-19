@@ -42,7 +42,7 @@ func run() error {
 		}
 	}()
 
-	conn, err := ws.CoderDialer{}.Dial(ctx, cfg.TelemetryWSURL)
+	conn, err := ws.NewWebsocket(ctx, cfg.TelemetryWSURL)
 	if err != nil {
 		return fmt.Errorf("ws connection fail: %w", err)
 	}

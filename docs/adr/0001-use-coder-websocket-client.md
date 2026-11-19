@@ -10,7 +10,7 @@ The telemetry service must ingest JSON records from a single upstream device Web
 
 ## Decision
 
-Use `github.com/coder/websocket` as the WebSocket client dependency, accessed behind a small internal `Dialer`/`Conn` interface in `internal/ingest` so ingestion and reconnect logic remain testable with fakes.
+Use `github.com/coder/websocket` as the WebSocket client dependency, with the client in `pkg/ws` and the consumer-side `Read`/`Close` interface in `internal/relay` so ingestion and reconnect logic remain testable with fakes.
 
 ## Alternatives Considered
 
@@ -35,4 +35,9 @@ Use `github.com/coder/websocket` as the WebSocket client dependency, accessed be
 - Future upgrades or behavior changes in the library must be tracked.
 
 ### Risks
-- Dependency/API drift over time — mitigated by isolating usage behind `internal/ingest` interfaces/adapters and covering behavior with tests.
+- Dependency/API drift over time — mitigated by isolating usage behind `pkg/ws` and covering behavior with tests.
+
+## References
+
+- `pkg/ws/ws.go` — WebSocket client and connection options.
+- `internal/relay/relay.go` — consumer-side `Read`/`Close` interface.
