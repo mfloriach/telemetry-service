@@ -32,7 +32,7 @@ func run() error {
 
 	ctx := context.Background()
 
-	publisher, err := kafka.NewKafkaPublisher(cfg.Brokers(), cfg.KafkaTopic)
+	publisher, err := kafka.NewPublisher(cfg.Brokers(), cfg.KafkaTopic)
 	if err != nil {
 		return fmt.Errorf("create kafka publisher: %w", err)
 	}

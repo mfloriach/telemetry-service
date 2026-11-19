@@ -12,21 +12,14 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-const (
-	defaultHTTPAddr   = ":8080"
-	defaultAppEnv     = "development"
-	defaultLogLevel   = "info"
-	defaultKafkaTopic = "telemetry.raw"
-)
-
 // Config holds runtime configuration for the telemetry server.
 type Config struct {
-	KafkaBrokers   []string `env:"KAFKA_BROKERS" validate:"required,min=1,dive,required"`
-	KafkaTopic     string   `env:"KAFKA_TOPIC" env-default:"telemetry.raw" validate:"required"`
-	HTTPAddr       string   `env:"HTTP_ADDR" env-default:":8080" validate:"required"`
-	AppEnv         string   `env:"APP_ENV" env-default:"development" validate:"required"`
-	LogLevel       string   `env:"LOG_LEVEL" env-default:"info" validate:"required,oneof=debug info warn error"`
-	LogFormat      string   `env:"LOG_FORMAT" validate:"required,oneof=json text"`
+	KafkaBrokers []string `env:"KAFKA_BROKERS" validate:"required,min=1,dive,required"`
+	KafkaTopic   string   `env:"KAFKA_TOPIC" env-default:"telemetry.raw" validate:"required"`
+	HTTPAddr     string   `env:"HTTP_ADDR" env-default:":8080" validate:"required"`
+	AppEnv       string   `env:"APP_ENV" env-default:"development" validate:"required"`
+	LogLevel     string   `env:"LOG_LEVEL" env-default:"info" validate:"required,oneof=debug info warn error"`
+	LogFormat    string   `env:"LOG_FORMAT" validate:"required,oneof=json text"`
 }
 
 // Load reads configuration from environment variables and command-line flags.
@@ -88,12 +81,12 @@ func validateConfig(cfg Config) error {
 		}
 
 		fieldNames := map[string]string{
-			"KafkaBrokers":   "KAFKA_BROKERS",
-			"KafkaTopic":     "KAFKA_TOPIC",
-			"HTTPAddr":       "HTTP_ADDR",
-			"AppEnv":         "APP_ENV",
-			"LogLevel":       "LOG_LEVEL",
-			"LogFormat":      "LOG_FORMAT",
+			"KafkaBrokers": "KAFKA_BROKERS",
+			"KafkaTopic":   "KAFKA_TOPIC",
+			"HTTPAddr":     "HTTP_ADDR",
+			"AppEnv":       "APP_ENV",
+			"LogLevel":     "LOG_LEVEL",
+			"LogFormat":    "LOG_FORMAT",
 		}
 
 		fe := validationErrors[0]

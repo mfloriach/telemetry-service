@@ -1,3 +1,4 @@
+// Package relay wires upstream telemetry reads to the Kafka publisher.
 package relay
 
 import (
@@ -6,29 +7,34 @@ import (
 	"fmt"
 )
 
+// Publisher publishes telemetry records to Kafka.
 type Publisher interface {
 	Publish(ctx context.Context, value []byte) error
 	Close() error
 }
 
+// Conn reads telemetry records from the upstream connection.
 type Conn interface {
 	Read(ctx context.Context) (string, []byte, error)
 	Close(code int, reason string) error
 }
 
-type runner struct {
+// Runner reads telemetry records and publishes them to Kafka.
+type Runner struct {
 	conn      Conn
 	publisher Publisher
 }
 
-func NewRunner(conn Conn, publisher Publisher) *runner {
-	return &runner{
+// NewRunner creates a runner that reads from conn and publishes to publisher.
+func NewRunner(conn Conn, publisher Publisher) *Runner {
+	return &Runner{
 		conn:      conn,
 		publisher: publisher,
 	}
 }
 
-func (r *runner) Run(ctx context.Context) error {
+// Run reads telemetry records until ctx is done or a read or publish fails.
+func (r *Runner) Run(ctx context.Context) error {
 	defer func() {
 		_ = r.conn.Close(1000, "relay stopping")
 	}()
@@ -45,7 +51,7 @@ func (r *runner) Run(ctx context.Context) error {
 	}
 }
 
-func (r *runner) runOnce(ctx context.Context) error {
+func (r *Runner) runOnce(ctx context.Context) error {
 	for {
 		_, msg, err := r.conn.Read(ctx)
 		if err != nil {

@@ -1,4 +1,4 @@
-.PHONY: install-precommit fmt-check lint test build
+.PHONY: install-precommit fmt-check lint test build smoke
 
 install-precommit:
 	@command -v lefthook >/dev/null 2>&1 || { \
@@ -23,3 +23,6 @@ test:
 
 build:
 	go build ./cmd/...
+
+smoke:
+	./e2e/smoke_start.sh

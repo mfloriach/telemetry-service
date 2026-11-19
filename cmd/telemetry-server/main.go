@@ -41,7 +41,7 @@ func run() error {
 	defer stop()
 
 	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
-	consumer := kafka.NewKafkaConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, "telemetry-ingest")
+	consumer := kafka.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, "telemetry-ingest")
 	sessionIng := ingest.NewSessionIngester(consumer, buf)
 	svc := httpapi.NewService(buf)
 	handler := httpapi.NewHandler(svc, logger)

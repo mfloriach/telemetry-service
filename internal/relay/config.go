@@ -1,3 +1,4 @@
+// Package relay wires upstream telemetry reads to the Kafka publisher.
 package relay
 
 import (

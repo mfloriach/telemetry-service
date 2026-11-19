@@ -25,11 +25,11 @@ jobs:
       - name: Verify formatting
         run: make fmt-check
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-
       - name: Lint
-        run: make lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+          args: ./...
 
       - name: Test
         run: make test
@@ -50,6 +50,23 @@ jobs:
 
       - name: Build
         run: make build
+
+  smoke:
+    name: Startup Smoke Test
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Start application
+        run: make smoke
 
   docker:
     name: Docker Build

@@ -86,7 +86,7 @@ func TestHandleLatest(t *testing.T) {
 			}
 
 			var got []struct {
-				device string  `json:"device"`
+				Device string  `json:"device"`
 				TS     float64 `json:"ts"`
 			}
 			if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
@@ -99,7 +99,7 @@ func TestHandleLatest(t *testing.T) {
 				if int64(got[i].TS) != wantTS {
 					t.Fatalf("record[%d] ts = %v, want %d", i, got[i].TS, wantTS)
 				}
-				if got[i].device == "" {
+				if got[i].Device == "" {
 					t.Fatalf("record[%d] missing pass-through field device: %#v", i, got[i])
 				}
 			}

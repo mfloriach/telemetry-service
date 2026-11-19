@@ -1,3 +1,4 @@
+// Package ingest consumes telemetry records and appends them to a buffer.
 package ingest
 
 import (
@@ -6,6 +7,7 @@ import (
 	"fmt"
 )
 
+// Consumer reads telemetry records from Kafka.
 type Consumer interface {
 	Consume(ctx context.Context) ([]byte, error)
 	Close() error

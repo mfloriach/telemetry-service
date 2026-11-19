@@ -19,12 +19,14 @@ const (
 	DefaultReadLimit int64 = 1 << 20
 )
 
+// WebSocket is a connection to the upstream telemetry source.
 type WebSocket struct {
 	conn   *websocket.Conn
 	logger *slog.Logger
 	ctx    context.Context
 }
 
+// Option configures a WebSocket built by NewWebsocket.
 type Option func(*config)
 
 type config struct {
@@ -44,18 +46,22 @@ func defaultConfig() config {
 	}
 }
 
+// WithHandshakeTimeout bounds the opening handshake. Values must be positive.
 func WithHandshakeTimeout(timeout time.Duration) Option {
 	return func(cfg *config) {
 		cfg.handshakeTimeout = timeout
 	}
 }
 
+// WithReadLimit sets the largest inbound message accepted, in bytes. Values must be positive.
 func WithReadLimit(limit int64) Option {
 	return func(cfg *config) {
 		cfg.readLimit = limit
 	}
 }
 
+// WithCompression enables or disables WebSocket compression and sets the minimum message
+// size, in bytes, before compression is applied. A threshold is only valid while enabled.
 func WithCompression(enabled bool, threshold int) Option {
 	return func(cfg *config) {
 		cfg.compression = enabled
@@ -63,12 +69,14 @@ func WithCompression(enabled bool, threshold int) Option {
 	}
 }
 
+// WithSubprotocols offers the given subprotocols during the opening handshake.
 func WithSubprotocols(subprotocols ...string) Option {
 	return func(cfg *config) {
 		cfg.subprotocols = append([]string(nil), subprotocols...)
 	}
 }
 
+// WithHeader adds a request header to the opening handshake.
 func WithHeader(key, value string) Option {
 	return func(cfg *config) {
 		if cfg.header == nil {
@@ -78,6 +86,8 @@ func WithHeader(key, value string) Option {
 	}
 }
 
+// NewWebsocket dials the upstream WebSocket endpoint and returns a ready connection.
+// The endpoint is required; every other setting is optional.
 func NewWebsocket(ctx context.Context, url string, opts ...Option) (*WebSocket, error) {
 	cfg := defaultConfig()
 	for _, opt := range opts {
@@ -125,6 +135,7 @@ func (cfg config) validate(url string) error {
 	return nil
 }
 
+// Read returns the next inbound message and its frame type.
 func (c *WebSocket) Read(ctx context.Context) (string, []byte, error) {
 	messageType, msg, err := c.conn.Read(ctx)
 	if err != nil {
@@ -133,9 +144,7 @@ func (c *WebSocket) Read(ctx context.Context) (string, []byte, error) {
 	return messageType.String(), msg, nil
 }
 
+// Close sends the given close code and reason and releases the connection.
 func (c *WebSocket) Close(code int, reason string) error {
-	if err := c.conn.Close(websocket.StatusCode(code), reason); err != nil {
-		return fmt.Errorf("err")
-	}
-	return nil
+	return c.conn.Close(websocket.StatusCode(code), reason)
 }
