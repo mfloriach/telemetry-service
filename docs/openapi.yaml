@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Telemetry Server API
   version: 1.0.0
-  description: HTTP API for querying buffered satellite telemetry records.
+  description: HTTP API for querying buffered telemetry records.
 servers:
   - url: /
 paths:
@@ -33,7 +33,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LatestTelemetryResponse'
               example:
-                - satellite: AE1
+                - device: AE1
                   ts: 1735657200400
                   battery: 42
         '400':

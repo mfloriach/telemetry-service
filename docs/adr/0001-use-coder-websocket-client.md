@@ -6,7 +6,7 @@
 
 ## Context
 
-The telemetry service must ingest JSON records from a single upstream satellite WebSocket endpoint that is unstable and periodically disconnects. Implementing WebSocket dialing, framing, read loops, and close behavior directly on raw sockets would add avoidable complexity and risk in reconnect-heavy code, while the project prefers standard-library-first solutions and requires explicit approval before adding external dependencies.
+The telemetry service must ingest JSON records from a single upstream device WebSocket endpoint that is unstable and periodically disconnects. Implementing WebSocket dialing, framing, read loops, and close behavior directly on raw sockets would add avoidable complexity and risk in reconnect-heavy code, while the project prefers standard-library-first solutions and requires explicit approval before adding external dependencies.
 
 ## Decision
 

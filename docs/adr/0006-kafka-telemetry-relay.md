@@ -6,7 +6,7 @@
 
 ## Context
 
-The system ingests upstream satellite telemetry in `cmd/telemetry-server`, buffers recent records in memory, and serves them over HTTP. There was no mechanism to forward ingested telemetry into an event-streaming system for downstream consumers. The change required adding Kafka publishing and local Kafka infrastructure without modifying existing telemetry-server runtime behavior.
+The system ingests upstream device telemetry in `cmd/telemetry-server`, buffers recent records in memory, and serves them over HTTP. There was no mechanism to forward ingested telemetry into an event-streaming system for downstream consumers. The change required adding Kafka publishing and local Kafka infrastructure without modifying existing telemetry-server runtime behavior.
 
 ## Decision
 

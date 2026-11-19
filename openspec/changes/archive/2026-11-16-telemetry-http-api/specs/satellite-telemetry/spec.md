@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide reliable access to recent satellite telemetry by ingesting an unstable upstream WebSocket feed, buffering recent records, and serving them through an HTTP query endpoint.
+Provide reliable access to recent device telemetry by ingesting an unstable upstream WebSocket feed, buffering recent records, and serving them through an HTTP query endpoint.
 
 ## ADDED Requirements
 

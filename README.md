@@ -1,6 +1,6 @@
 # Telemetry Server
 
-HTTP API service that ingests satellite telemetry from an unstable WebSocket source, buffers recent records in memory, and serves the latest telemetry over HTTP.
+HTTP API service that ingests telemetry from an unstable WebSocket source, buffers recent records in memory, and serves the latest telemetry over HTTP.
 
 ## Configuration
 
@@ -23,6 +23,19 @@ CLI flags override environment variables:
 - `-log-format=<format>`
 
 Invalid `LOG_LEVEL` or `LOG_FORMAT` values cause startup to fail with a configuration error. Application logs are emitted with runtime/request context; request-scoped logs include `request_id` when available.
+
+## Architecture
+- `cmd`: start command and dependency injection.
+- `internal`: 
+  - `relay`: process income telemetry and feed the message queue. 
+  - `telemetry`: store and present the telemetry value via HTTP.
+- `pkg`: modules without domain related logic.
+
+
+### Cloud deployment
+![](./docs/diagrams/aws-serverless-option-a.png)
+
+[Costs estimation](terraform/option-a-lambda-apigw/env/prod/cost.csv)
 
 ## Run
 

@@ -16,8 +16,8 @@ C3X_IMAGE     ?= ghcr.io/c3xdev/c3x:latest
 TF_PLATFORM   ?= linux/amd64
 
 # Selection
-TF_OPTION     ?= option-b-lambda-functionurl
-TF_ENV        ?= stage
+TF_OPTION     ?= option-a-lambda-apigw
+TF_ENV        ?= prod
 AWS_REGION    ?= us-east-1
 AWS_PROFILE   ?=
 

@@ -2,7 +2,7 @@
 
 ## Why
 
-`internal/ingest/ingest.go` currently combines single-session WebSocket ingestion and resilient reconnect/backoff+jitter policy in one `Ingester` type, making retry behavior harder to understand and evolve in isolation. Refactoring to a decorator separates concerns while preserving the existing resilient ingestion behavior required by ADR-0004 and the `satellite-telemetry` spec.
+`internal/ingest/ingest.go` currently combines single-session WebSocket ingestion and resilient reconnect/backoff+jitter policy in one `Ingester` type, making retry behavior harder to understand and evolve in isolation. Refactoring to a decorator separates concerns while preserving the existing resilient ingestion behavior required by ADR-0004 and the `telemetry` spec.
 
 ## What Changes
 
@@ -27,5 +27,5 @@
 
 - **Affected code:** `internal/ingest/ingest.go`, `internal/ingest/ingest_test.go`, `internal/ingest/reconnect_test.go`, `cmd/telemetry-server/main.go` (and any related internal call sites).
 - **APIs:** internal `ingest` package API/types/constructors will change; external HTTP API and telemetry behavior remain unchanged.
-- **ADRs/specs:** reviewed `docs/adr/0004` and `openspec/specs/satellite-telemetry/spec.md`; compatible as behavior-preserving, no ADR/spec changes required.
+- **ADRs/specs:** reviewed `docs/adr/0004` and `openspec/specs/telemetry/spec.md`; compatible as behavior-preserving, no ADR/spec changes required.
 - **Risks:** accidental retry-policy drift or test brittleness during refactor; mitigated by preserving existing behavior, updating deterministic tests, and running `gofmt`, `go test -race`, and `golangci-lint` on modified packages.

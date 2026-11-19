@@ -12,7 +12,7 @@ func TestRingBuffer_AddAppendAndOverwrite(t *testing.T) {
 
 	b := NewRingBuffer(3)
 	for i := 1; i <= 5; i++ {
-		b.Add([]byte(fmt.Sprintf(`{"satellite":"AE1","ts":%d,"battery":%d}`, i, i)))
+		b.Add([]byte(fmt.Sprintf(`{"device":"AE1","ts":%d,"battery":%d}`, i, i)))
 	}
 
 	if got := b.Len(); got != 3 {
@@ -45,7 +45,7 @@ func TestRingBuffer_OverwriteKeepsLatest1000(t *testing.T) {
 	b := NewRingBuffer(DefaultCapacity)
 	total := 1205
 	for i := 1; i <= total; i++ {
-		b.Add([]byte(fmt.Sprintf(`{"satellite":"AE1","ts":%d}`, i)))
+		b.Add([]byte(fmt.Sprintf(`{"device":"AE1","ts":%d}`, i)))
 	}
 
 	if got := b.Len(); got != DefaultCapacity {
@@ -81,7 +81,7 @@ func TestRingBuffer_ConcurrentReadWrite(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < perWriter; i++ {
 				ts := w*perWriter + i
-				b.Add([]byte(fmt.Sprintf(`{"satellite":"AE1","ts":%d}`, ts)))
+				b.Add([]byte(fmt.Sprintf(`{"device":"AE1","ts":%d}`, ts)))
 			}
 		}()
 	}
@@ -153,9 +153,9 @@ func TestRingBuffer_LatestSortedByTSDesc(t *testing.T) {
 	t.Parallel()
 
 	b := NewRingBuffer(10)
-	b.Add([]byte(`{"satellite":"AE1","ts":100,"battery":1}`))
-	b.Add([]byte(`{"satellite":"AE1","ts":300,"battery":3}`))
-	b.Add([]byte(`{"satellite":"AE1","ts":200,"battery":2}`))
+	b.Add([]byte(`{"device":"AE1","ts":100,"battery":1}`))
+	b.Add([]byte(`{"device":"AE1","ts":300,"battery":3}`))
+	b.Add([]byte(`{"device":"AE1","ts":200,"battery":2}`))
 
 	got := b.Latest(3)
 	if len(got) != 3 {
@@ -174,8 +174,8 @@ func TestRingBuffer_LatestSortedByTSDesc(t *testing.T) {
 		if obj["battery"].(float64) != float64(wantTS[i]/100) {
 			t.Fatalf("Latest(3)[%d] payload not preserved as expected: %s", i, string(rec.Payload))
 		}
-		if _, ok := obj["satellite"]; !ok {
-			t.Fatalf("Latest(3)[%d] missing original field satellite", i)
+		if _, ok := obj["device"]; !ok {
+			t.Fatalf("Latest(3)[%d] missing original field device", i)
 		}
 	}
 }
@@ -184,8 +184,8 @@ func TestRingBuffer_LatestFewerThanRequested(t *testing.T) {
 	t.Parallel()
 
 	b := NewRingBuffer(10)
-	b.Add([]byte(`{"satellite":"AE1","ts":10}`))
-	b.Add([]byte(`{"satellite":"AE1","ts":20}`))
+	b.Add([]byte(`{"device":"AE1","ts":10}`))
+	b.Add([]byte(`{"device":"AE1","ts":20}`))
 
 	got := b.Latest(5)
 	if len(got) != 2 {
@@ -200,9 +200,9 @@ func TestRingBuffer_LatestMissingTSSortsLast(t *testing.T) {
 	t.Parallel()
 
 	b := NewRingBuffer(10)
-	b.Add([]byte(`{"satellite":"AE1","battery":1}`))
-	b.Add([]byte(`{"satellite":"AE1","ts":50}`))
-	b.Add([]byte(`{"satellite":"AE1","ts":"bad"}`))
+	b.Add([]byte(`{"device":"AE1","battery":1}`))
+	b.Add([]byte(`{"device":"AE1","ts":50}`))
+	b.Add([]byte(`{"device":"AE1","ts":"bad"}`))
 
 	got := b.Latest(3)
 	if len(got) != 3 {
@@ -214,7 +214,7 @@ func TestRingBuffer_LatestMissingTSSortsLast(t *testing.T) {
 	if got[1].TS != -9223372036854775808 || got[2].TS != -9223372036854775808 {
 		t.Fatalf("missing/uncomparable ts should sort last, got [%d %d %d]", got[0].TS, got[1].TS, got[2].TS)
 	}
-	if string(got[0].Payload) != `{"satellite":"AE1","ts":50}` {
+	if string(got[0].Payload) != `{"device":"AE1","ts":50}` {
 		t.Fatalf("payload pass-through mismatch: %s", string(got[0].Payload))
 	}
 }
@@ -225,7 +225,7 @@ func TestRingBuffer_NoPersistenceAcrossRestart(t *testing.T) {
 	t.Parallel()
 
 	prev := NewRingBuffer(10)
-	prev.Add([]byte(`{"satellite":"AE1","ts":1}`))
+	prev.Add([]byte(`{"device":"AE1","ts":1}`))
 	if prev.Len() != 1 {
 		t.Fatalf("pre-restart Len() = %d, want 1", prev.Len())
 	}

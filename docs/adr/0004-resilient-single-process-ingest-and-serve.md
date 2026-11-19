@@ -6,7 +6,7 @@
 
 ## Context
 
-The system acts as a buffering relay between an unstable upstream satellite WebSocket feed (~10 records/sec with periodic disconnects) and downstream HTTP consumers requesting recent records. The solution must automatically reconnect, log connection lifecycle/retry events, and serve `GET /telemetry/latest` from local buffered state with minimal operational complexity.
+The system acts as a buffering relay between an unstable upstream WebSocket feed (~10 records/sec with periodic disconnects) and downstream HTTP consumers requesting recent records. The solution must automatically reconnect, log connection lifecycle/retry events, and serve `GET /telemetry/latest` from local buffered state with minimal operational complexity.
 
 ## Decision
 

@@ -1,4 +1,4 @@
-// Package buffer provides an in-memory, fixed-capacity ring buffer for satellite
+// Package buffer provides an in-memory, fixed-capacity ring buffer for device
 // telemetry records.
 //
 // Records are stored as the original JSON payloads received from upstream and

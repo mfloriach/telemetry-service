@@ -2,7 +2,7 @@
 
 ## Context
 
-This change introduces a new Go service that bridges an unstable satellite telemetry WebSocket feed and downstream consumers (see `proposal.md` and `specs/satellite-telemetry/spec.md`). The upstream sends ~10 JSON telemetry records/sec and becomes unstable every ~10 seconds for a few seconds, so ingestion must tolerate disconnects and preserve recent data in memory for HTTP queries.
+This change introduces a new Go service that bridges an unstable device telemetry WebSocket feed and downstream consumers (see `proposal.md` and `specs/telemetry/spec.md`). The upstream sends ~10 JSON telemetry records/sec and becomes unstable every ~10 seconds for a few seconds, so ingestion must tolerate disconnects and preserve recent data in memory for HTTP queries.
 
 Constraints and assumptions (lightweight C4-inspired view, plain Mermaid `flowchart`):
 - Greenfield service in this repository (currently no application code under `cmd/`/`internal/`).
@@ -12,7 +12,7 @@ Constraints and assumptions (lightweight C4-inspired view, plain Mermaid `flowch
 
 ```mermaid
 flowchart LR
-    Sat[Satellite Telemetry Source\nExternal WebSocket]
+    Sat[Telemetry Source\nExternal WebSocket]
     subgraph Svc[Telemetry Relay Service\nGo process]
       Ing[Ingestion Worker\nconnect/read/reconnect]
       Buf[(In-memory Ring Buffer\nlatest 1000 records)]
@@ -41,7 +41,7 @@ flowchart LR
 **Non-Goals:**
 - Interpreting or validating telemetry business fields beyond what is needed to order responses (`ts`).
 - Persistence/durability across restarts, historical query APIs, or data export.
-- Authentication/authorization, TLS termination specifics, metrics endpoints, or multi-satellite fan-in (single upstream only).
+- Authentication/authorization, TLS termination specifics, metrics endpoints, or multi-device fan-in (single upstream only).
 - Exactly-once or gap-free delivery guarantees from the unstable upstream (best-effort ingest of received records).
 
 ## Decisions

@@ -2,7 +2,7 @@
 
 ## Why
 
-External systems need reliable access to recent satellite telemetry, but the upstream satellite WebSocket feed is unstable (connections may fail or drop during periodic instability windows). This change introduces a local HTTP service that continuously ingests telemetry, tolerates disconnects through automatic reconnection and buffering, and serves the latest records on demand.
+External systems need reliable access to recent device telemetry, but the upstream device WebSocket feed is unstable (connections may fail or drop during periodic instability windows). This change introduces a local HTTP service that continuously ingests telemetry, tolerates disconnects through automatic reconnection and buffering, and serves the latest records on demand.
 
 ## What Changes
 
@@ -19,7 +19,7 @@ External systems need reliable access to recent satellite telemetry, but the ups
 ## Capabilities
 
 ### New Capabilities
-- `satellite-telemetry`: Ingest satellite telemetry from an unstable WebSocket source with resilient reconnection and buffering, and serve the latest telemetry records over an HTTP query API.
+- `telemetry`: Ingest device telemetry from an unstable WebSocket source with resilient reconnection and buffering, and serve the latest telemetry records over an HTTP query API.
 
 ### Modified Capabilities
 - None.
@@ -30,4 +30,4 @@ External systems need reliable access to recent satellite telemetry, but the ups
 - **APIs:** New external HTTP API `GET /telemetry/latest`.
 - **Dependencies:** May require adding a WebSocket client dependency (subject to project approval) and standard library HTTP/JSON/concurrency primitives.
 - **Operations/observability:** Runtime configuration for upstream WebSocket URL and HTTP listen address; structured logs for connection lifecycle and retry behavior.
-- **Systems:** Acts as a buffering relay between an unstable satellite telemetry source and downstream consumers. Buffer is in-memory only (lost on restart).
+- **Systems:** Acts as a buffering relay between an unstable device telemetry source and downstream consumers. Buffer is in-memory only (lost on restart).

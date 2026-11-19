@@ -2,7 +2,7 @@
 
 ## Why
 
-The project ingests upstream satellite telemetry and serves recent records over HTTP, but has no way to forward ingested telemetry into a durable/event-streaming system for downstream consumers. Adding a Kafka relay and local Compose setup enables event publishing without changing existing telemetry-server behavior.
+The project ingests upstream device telemetry and serves recent records over HTTP, but has no way to forward ingested telemetry into a durable/event-streaming system for downstream consumers. Adding a Kafka relay and local Compose setup enables event publishing without changing existing telemetry-server behavior.
 
 ## What Changes
 
@@ -26,4 +26,4 @@ The project ingests upstream satellite telemetry and serves recent records over 
 - **Infra/dev tooling:** `docker-compose.yml` (Kafka/KRaft, local dev).
 - **Dependencies/config/docs:** possible updates to `go.mod`/`go.sum`, `.env.example`, and README for Kafka client dependency and relay/Compose usage.
 - **Unchanged:** existing `cmd/telemetry-server`, `internal/*` behavior, existing tests, and current HTTP/WebSocket ingest semantics.
-- **ADRs/specs:** new ADR required (approved) for Kafka relay/deployment decision; no changes to existing `satellite-telemetry` or `structured-logging` requirement specs expected.
+- **ADRs/specs:** new ADR required (approved) for Kafka relay/deployment decision; no changes to existing `telemetry` or `structured-logging` requirement specs expected.

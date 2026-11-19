@@ -31,7 +31,7 @@ func TestHandleLatest(t *testing.T) {
 		{
 			name:       "valid request returns latest n sorted desc by ts",
 			query:      "?n=3",
-			seed:       []string{`{"satellite":"AE1","ts":10,"battery":1}`, `{"satellite":"AE1","ts":30,"battery":3}`, `{"satellite":"AE1","ts":20,"battery":2}`, `{"satellite":"AE1","ts":40,"battery":4}`},
+			seed:       []string{`{"device":"AE1","ts":10,"battery":1}`, `{"device":"AE1","ts":30,"battery":3}`, `{"device":"AE1","ts":20,"battery":2}`, `{"device":"AE1","ts":40,"battery":4}`},
 			wantStatus: http.StatusOK,
 			wantLen:    3,
 			wantTSDesc: []int64{40, 30, 20},
@@ -39,7 +39,7 @@ func TestHandleLatest(t *testing.T) {
 		{
 			name:       "fewer than n returns all available",
 			query:      "?n=5",
-			seed:       []string{`{"satellite":"AE1","ts":10}`, `{"satellite":"AE1","ts":20}`},
+			seed:       []string{`{"device":"AE1","ts":10}`, `{"device":"AE1","ts":20}`},
 			wantStatus: http.StatusOK,
 			wantLen:    2,
 			wantTSDesc: []int64{20, 10},
@@ -86,8 +86,8 @@ func TestHandleLatest(t *testing.T) {
 			}
 
 			var got []struct {
-				Satellite string  `json:"satellite"`
-				TS        float64 `json:"ts"`
+				device string  `json:"device"`
+				TS     float64 `json:"ts"`
 			}
 			if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 				t.Fatalf("unmarshal response: %v body=%q", err, rr.Body.String())
@@ -99,8 +99,8 @@ func TestHandleLatest(t *testing.T) {
 				if int64(got[i].TS) != wantTS {
 					t.Fatalf("record[%d] ts = %v, want %d", i, got[i].TS, wantTS)
 				}
-				if got[i].Satellite == "" {
-					t.Fatalf("record[%d] missing pass-through field satellite: %#v", i, got[i])
+				if got[i].device == "" {
+					t.Fatalf("record[%d] missing pass-through field device: %#v", i, got[i])
 				}
 			}
 		})
@@ -111,8 +111,8 @@ func TestNewServer_EndpointReachable(t *testing.T) {
 	t.Parallel()
 
 	buf := buffer.NewRingBuffer(10)
-	buf.Add([]byte(`{"satellite":"AE1","ts":20}`))
-	buf.Add([]byte(`{"satellite":"AE1","ts":10}`))
+	buf.Add([]byte(`{"device":"AE1","ts":20}`))
+	buf.Add([]byte(`{"device":"AE1","ts":10}`))
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -168,7 +168,7 @@ func TestNewServer_RequestLogsIncludeRequestID(t *testing.T) {
 	t.Parallel()
 
 	buf := buffer.NewRingBuffer(10)
-	buf.Add([]byte(`{"satellite":"AE1","ts":20}`))
+	buf.Add([]byte(`{"device":"AE1","ts":20}`))
 
 	var logBuf bytes.Buffer
 	logger := logging.NewLogger("json", "info", &logBuf, middleware.RequestIDFromContext)
