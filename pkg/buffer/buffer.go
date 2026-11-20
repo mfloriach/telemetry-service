@@ -1,64 +1,82 @@
-// Package buffer provides an in-memory, fixed-capacity ring buffer for device
-// telemetry records.
+// Package buffer provides a concurrency-safe, fixed-capacity ring buffer.
 //
-// Records are stored as the original JSON payloads received from upstream and
-// are never persisted across process restarts. The buffer retains at most 1000
-// records by default (latest records win when full).
+// The buffer stores values of a caller-chosen type and retains at most a fixed
+// number of them. It is in-memory only; values are lost when the process exits.
 //
-// Query results are derived from the most recently ingested records and sorted
-// by payload "ts" in descending order. If "ts" is missing or not a comparable
-// JSON number, the record is assigned math.MinInt64 for ordering so it sorts
-// after records with valid comparable timestamps.
+// Latest orders retained values by a timestamp extracted from each value. When
+// no extractor is configured, values keep their ingestion order.
 package buffer
 
 import (
-	"bytes"
-	"encoding/json"
-	"math"
 	"sort"
 	"sync"
 )
 
-// DefaultCapacity is the default number of telemetry records retained in memory.
+// DefaultCapacity is the default number of values retained in memory.
 const DefaultCapacity = 1000
 
-// Record stores an ingested telemetry payload and its sortable timestamp key.
-type Record struct {
-	Payload json.RawMessage
-	TS      int64
+// Option configures a Buffer.
+type Option[T any] func(*config[T])
+
+type config[T any] struct {
+	timestamp func(T) int64
 }
 
-// RingBuffer is a fixed-capacity, concurrency-safe buffer of telemetry records.
-// It retains only the most recent records and overwrites the oldest when full.
-type RingBuffer struct {
-	mu       sync.RWMutex
-	capacity int
-	records  []Record
-	next     int
-	size     int
+// WithTimestamp sets the function used to extract the ordering key from a
+// value. Latest sorts larger timestamps first. When omitted, Latest preserves
+// ingestion order.
+func WithTimestamp[T any](fn func(T) int64) Option[T] {
+	return func(cfg *config[T]) {
+		cfg.timestamp = fn
+	}
 }
 
-// NewRingBuffer creates a ring buffer with the given capacity.
+type entry[T any] struct {
+	value T
+	ts    int64
+}
+
+// Buffer is a fixed-capacity, concurrency-safe ring buffer.
+// It retains only the most recent values and overwrites the oldest when full.
+type Buffer[T any] struct {
+	mu        sync.RWMutex
+	capacity  int
+	entries   []entry[T]
+	next      int
+	size      int
+	timestamp func(T) int64
+}
+
+// New creates a Buffer with the given capacity.
 // If capacity <= 0, DefaultCapacity is used.
-func NewRingBuffer(capacity int) *RingBuffer {
+func New[T any](capacity int, opts ...Option[T]) *Buffer[T] {
 	if capacity <= 0 {
 		capacity = DefaultCapacity
 	}
-	return &RingBuffer{
-		capacity: capacity,
-		records:  make([]Record, capacity),
+
+	cfg := config[T]{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+
+	return &Buffer[T]{
+		capacity:  capacity,
+		entries:   make([]entry[T], capacity),
+		timestamp: cfg.timestamp,
 	}
 }
 
-// Add appends a telemetry record payload, extracting its ts sort key.
-func (b *RingBuffer) Add(payload []byte) {
-	rec := Record{
-		Payload: append(json.RawMessage(nil), bytes.TrimSpace(payload)...),
-		TS:      extractTS(payload),
+// Add appends a value, overwriting the oldest when the buffer is full.
+func (b *Buffer[T]) Add(value T) {
+	var ts int64
+	if b.timestamp != nil {
+		ts = b.timestamp(value)
 	}
 
 	b.mu.Lock()
-	b.records[b.next] = rec
+	b.entries[b.next] = entry[T]{value: value, ts: ts}
 	b.next = (b.next + 1) % b.capacity
 	if b.size < b.capacity {
 		b.size++
@@ -66,95 +84,66 @@ func (b *RingBuffer) Add(payload []byte) {
 	b.mu.Unlock()
 }
 
-// Len returns the number of buffered records.
-func (b *RingBuffer) Len() int {
+// Len returns the number of buffered values.
+func (b *Buffer[T]) Len() int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.size
 }
 
-// Snapshot returns buffered records in ingestion order from oldest to newest.
-func (b *RingBuffer) Snapshot() []Record {
+// Snapshot returns buffered values in ingestion order from oldest to newest.
+func (b *Buffer[T]) Snapshot() []T {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	out := make([]Record, 0, b.size)
+	out := make([]T, 0, b.size)
 	if b.size == 0 {
 		return out
 	}
+
 	start := 0
 	if b.size == b.capacity {
 		start = b.next
 	}
 	for i := 0; i < b.size; i++ {
-		idx := (start + i) % b.capacity
-		rec := b.records[idx]
-		out = append(out, Record{
-			Payload: append(json.RawMessage(nil), rec.Payload...),
-			TS:      rec.TS,
-		})
+		out = append(out, b.entries[(start+i)%b.capacity].value)
 	}
 	return out
 }
 
-// Latest returns up to n most recently ingested records sorted by payload ts descending.
-// If n <= 0 or no records are buffered, it returns an empty slice.
-// Records with missing or uncomparable ts values are assigned math.MinInt64 and
-// therefore sort after records with valid comparable ts values.
-func (b *RingBuffer) Latest(n int) []Record {
+// Latest returns up to n most recently ingested values sorted by timestamp
+// descending. If n <= 0 or no values are buffered, it returns an empty slice.
+// Values with equal timestamps keep their ingestion order.
+func (b *Buffer[T]) Latest(n int) []T {
 	if n <= 0 {
-		return []Record{}
+		return []T{}
 	}
 
-	snap := b.Snapshot()
-	if len(snap) == 0 {
-		return []Record{}
+	b.mu.RLock()
+	if b.size == 0 {
+		b.mu.RUnlock()
+		return []T{}
 	}
-	if n > len(snap) {
-		n = len(snap)
-	}
-
-	latest := make([]Record, 0, n)
-	for i := len(snap) - n; i < len(snap); i++ {
-		latest = append(latest, snap[i])
+	if n > b.size {
+		n = b.size
 	}
 
-	sort.SliceStable(latest, func(i, j int) bool {
-		return latest[i].TS > latest[j].TS
-	})
-	return latest
-}
-
-func extractTS(payload []byte) int64 {
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &obj); err != nil {
-		return math.MinInt64
+	start := (b.next - n + b.capacity) % b.capacity
+	latest := make([]entry[T], n)
+	for i := 0; i < n; i++ {
+		latest[i] = b.entries[(start+i)%b.capacity]
 	}
-	raw, ok := obj["ts"]
-	if !ok {
-		return math.MinInt64
-	}
-	return parseTSValue(raw)
-}
+	b.mu.RUnlock()
 
-func parseTSValue(raw json.RawMessage) int64 {
-	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 {
-		return math.MinInt64
+	if b.timestamp != nil {
+		sort.SliceStable(latest, func(i, j int) bool {
+			return latest[i].ts > latest[j].ts
+		})
 	}
 
-	var i int64
-	if err := json.Unmarshal(raw, &i); err == nil {
-		return i
+	out := make([]T, n)
+	for i, e := range latest {
+		out[i] = e.value
 	}
-
-	var f float64
-	if err := json.Unmarshal(raw, &f); err == nil {
-		if math.IsNaN(f) || math.IsInf(f, 0) {
-			return math.MinInt64
-		}
-		return int64(f)
-	}
-
-	return math.MinInt64
+	return out
 }

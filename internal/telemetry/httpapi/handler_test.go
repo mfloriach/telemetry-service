@@ -56,7 +56,7 @@ func TestHandleLatest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			buf := buffer.NewRingBuffer(100)
+			buf := buffer.NewTelemetryBuffer(100)
 			for _, s := range tt.seed {
 				buf.Add([]byte(s))
 			}
@@ -110,7 +110,7 @@ func TestHandleLatest(t *testing.T) {
 func TestNewServer_EndpointReachable(t *testing.T) {
 	t.Parallel()
 
-	buf := buffer.NewRingBuffer(10)
+	buf := buffer.NewTelemetryBuffer(10)
 	buf.Add([]byte(`{"device":"AE1","ts":20}`))
 	buf.Add([]byte(`{"device":"AE1","ts":10}`))
 
@@ -167,7 +167,7 @@ func TestNewServer_EndpointReachable(t *testing.T) {
 func TestNewServer_RequestLogsIncludeRequestID(t *testing.T) {
 	t.Parallel()
 
-	buf := buffer.NewRingBuffer(10)
+	buf := buffer.NewTelemetryBuffer(10)
 	buf.Add([]byte(`{"device":"AE1","ts":20}`))
 
 	var logBuf bytes.Buffer

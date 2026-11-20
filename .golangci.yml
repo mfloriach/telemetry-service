@@ -19,6 +19,17 @@ linters:
   settings:
     depguard:
       rules:
+        internal-only-stdlib:
+          files:
+            - "**/internal/**/*.go"
+            - "!$test"
+          list-mode: strict
+          allow:
+            - $gostd
+            - server/internal
+            - 'github.com/go-playground/validator/v10'
+            - 'github.com/ilyakaznacheev/cleanenv'
+
         no-internal-dependencies:
           files:
             - "**/internal/**/*.go"

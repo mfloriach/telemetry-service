@@ -40,7 +40,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	buf := buffer.NewRingBuffer(buffer.DefaultCapacity)
+	buf := buffer.NewTelemetryBuffer(buffer.DefaultCapacity)
 	consumer, err := kafka.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, "telemetry-ingest")
 	if err != nil {
 		return fmt.Errorf("create kafka consumer: %w", err)

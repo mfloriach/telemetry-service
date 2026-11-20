@@ -5,14 +5,9 @@ import (
 	"encoding/json"
 )
 
-type Record struct {
-	Payload json.RawMessage
-	TS      int64
-}
-
-// LatestSource provides the latest telemetry records.
+// LatestSource provides the latest telemetry payloads.
 type LatestSource interface {
-	Latest(n int) []Record
+	Latest(n int) []json.RawMessage
 }
 
 // Service implements telemetry business logic for HTTP endpoints.
@@ -27,10 +22,9 @@ func NewService(source LatestSource) *Service {
 
 // Latest returns up to n latest telemetry payloads sorted by ts descending.
 func (s *Service) Latest(_ context.Context, n int) (LatestResponse, error) {
-	records := s.source.Latest(n)
-	payloads := make(LatestResponse, 0, len(records))
-	for _, rec := range records {
-		payloads = append(payloads, rec.Payload)
+	payloads := s.source.Latest(n)
+	if payloads == nil {
+		payloads = []json.RawMessage{}
 	}
-	return payloads, nil
+	return LatestResponse(payloads), nil
 }
