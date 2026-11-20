@@ -2,13 +2,17 @@ package httpapi
 
 import (
 	"context"
-
-	"server/pkg/buffer"
+	"encoding/json"
 )
+
+type Record struct {
+	Payload json.RawMessage
+	TS      int64
+}
 
 // LatestSource provides the latest telemetry records.
 type LatestSource interface {
-	Latest(n int) []buffer.Record
+	Latest(n int) []Record
 }
 
 // Service implements telemetry business logic for HTTP endpoints.

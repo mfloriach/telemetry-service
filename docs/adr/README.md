@@ -9,3 +9,4 @@
 | [0005](0005-configure-structured-logging.md) | Configure structured logging by environment and level | accepted | 2026-11-16 |
 | [0006](0006-kafka-telemetry-relay.md) | Kafka telemetry relay as a separate process | accepted | 2026-11-16 |
 | [0007](0007-configure-websocket-connection-with-functional-options.md) | Configure the WebSocket connection with functional options and a required endpoint | accepted | 2026-11-19 |
+| [0008](0008-configure-kafka-clients-with-functional-options.md) | Configure the Kafka clients with functional options and explicit required values | accepted | 2026-11-20 |

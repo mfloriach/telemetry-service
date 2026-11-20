@@ -1,6 +1,13 @@
 {
   "version": 2,
   "skills": {
+    "architecture-decision-records": {
+      "source": "affaan-m/ECC",
+      "commit": "4adeee6732a12d1540f49a4d50a38ce8c97f9a53",
+      "sourceType": "github",
+      "skillPath": "skills/architecture-decision-records/SKILL.md",
+      "computedHash": "8efc159025ce583f1947c1f2fe4d46c42644c787a70abc54f7fd18100b47b271"
+    },
     "stack-diagram": {
       "source": "caru-ini/stack-diagram",
       "commit": "85ff93b92f69bf400337b9d9edc310650493ee59",
@@ -8,6 +15,13 @@
       "skillPath": "skills/stack-diagram/SKILL.md",
       "computedHash": "1b886952f5427766a3206903092acb572ecd3c49b39c10f1e01cb136236ff6c2",
       "installMode": "copy"
+    },
+    "visual-explainer": {
+      "source": "nicobailon/visual-explainer",
+      "commit": "9d5f880b7e8e0a9a80c890b8e1bb6918b68481ad",
+      "sourceType": "github",
+      "skillPath": "plugins/visual-explainer/SKILL.md",
+      "computedHash": "305dcaef5f5ee1cd49083609b3ab182b9c55293590d4fbeeb625b2b5c30eab91"
     }
   }
 }

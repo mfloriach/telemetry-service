@@ -14,6 +14,19 @@ linters:
     - unused
     - gosec
     - revive
+    - depguard
+
+  settings:
+    depguard:
+      rules:
+        no-internal-dependencies:
+          files:
+            - "**/internal/**/*.go"
+            - "!$test"
+          list-mode: lax
+          deny:
+            - pkg: "server/pkg"
+              desc: "Internal packages must not depend on pkg."
 
 formatters:
   enable:
@@ -23,3 +36,5 @@ formatters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+
+

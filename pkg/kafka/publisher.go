@@ -4,6 +4,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/segmentio/kafka-go"
@@ -15,17 +16,29 @@ type Publisher struct {
 }
 
 // NewPublisher creates a Kafka publisher for the given brokers and topic.
-func NewPublisher(brokers []string, topic string) (*Publisher, error) {
+func NewPublisher(brokers []string, topic string, opts ...PublisherOption) (*Publisher, error) {
 	if len(brokers) == 0 {
 		return nil, errors.New("at least one Kafka broker is required")
 	}
 	if strings.TrimSpace(topic) == "" {
 		return nil, errors.New("kafka topic is required")
 	}
+
+	cfg := publisherConfig{}
+	for _, opt := range opts {
+		if err := opt(&cfg); err != nil {
+			return nil, fmt.Errorf("configure kafka publisher: %w", err)
+		}
+	}
+
 	w := &kafka.Writer{
-		Addr:     kafka.TCP(brokers...),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
+		Addr:         kafka.TCP(brokers...),
+		Topic:        topic,
+		Balancer:     &kafka.LeastBytes{},
+		RequiredAcks: cfg.requiredAcks,
+		MaxAttempts:  cfg.maxAttempts,
+		BatchSize:    cfg.batchSize,
+		BatchTimeout: cfg.batchTimeout,
 	}
 	return &Publisher{writer: w}, nil
 }
