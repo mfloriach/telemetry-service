@@ -51,10 +51,12 @@ func run() error {
 		return fmt.Errorf("create relay handler: %w", err)
 	}
 
-	srv, err := ws.NewServer(cfg.WSAddr, handler.Handle)
+	srv, err := ws.NewServer(cfg.WSAddr, handler.Handle, ws.WithServerLogger(logger))
 	if err != nil {
 		return fmt.Errorf("create ws server: %w", err)
 	}
+
+	logger.InfoContext(ctx, "relay listening", "addr", srv.Addr(), "topic", cfg.KafkaTopic)
 
 	if err := srv.Run(ctx); err != nil {
 		return fmt.Errorf("ws server: %w", err)

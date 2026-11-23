@@ -1,9 +1,3 @@
-# Local development Kafka (single broker, KRaft mode) for the telemetry relay.
-# Usage:
-#   docker compose up -d
-#   # Broker for host clients: localhost:9092
-#   # Example relay env: KAFKA_BROKERS=localhost:9092 KAFKA_TOPIC=telemetry.raw WS_ADDR=:9000
-
 services:
   kafka:
     image: apache/kafka:3.9.0
@@ -13,10 +7,11 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:9094
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -26,16 +21,29 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
 
-  telemetry-relay:
+  relay:
     build:
       context: .
       dockerfile: Dockerfile
+      target: relay-runtime
     ports:
       - "9000:9000"
     environment:
-      KAFKA_BROKERS: localhost:9092
+      WS_ADDR: :9000
+      KAFKA_BROKERS: kafka:9094
       KAFKA_TOPIC: telemetry.raw
+      APP_ENV: development
+      LOG_LEVEL: info
+    depends_on:
+      kafka:
+        condition: service_healthy
 
 volumes:
   kafka_data:

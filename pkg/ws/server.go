@@ -35,7 +35,7 @@ type serverConfig struct {
 }
 
 func defaultServerConfig() serverConfig {
-	return serverConfig{readLimit: DefaultReadLimit}
+	return serverConfig{readLimit: DefaultReadLimit, logger: slog.Default()}
 }
 
 // WithServerReadLimit sets the largest inbound message the server accepts, in bytes.
@@ -46,12 +46,23 @@ func WithServerReadLimit(limit int64) ServerOption {
 	}
 }
 
+// WithServerLogger sets the logger used to report connection activity. A nil
+// logger leaves the default slog logger in place.
+func WithServerLogger(logger *slog.Logger) ServerOption {
+	return func(cfg *serverConfig) {
+		if logger != nil {
+			cfg.logger = logger
+		}
+	}
+}
+
 // Server accepts device WebSocket connections on a fixed telemetry path and
 // delivers each inbound message to a MessageHandler.
 type Server struct {
 	addr      string
 	handler   MessageHandler
 	readLimit int64
+	logger    *slog.Logger
 
 	mu        sync.Mutex
 	conns     map[*websocket.Conn]struct{}
@@ -83,6 +94,7 @@ func NewServer(addr string, handler MessageHandler, opts ...ServerOption) (*Serv
 		addr:      addr,
 		handler:   handler,
 		readLimit: cfg.readLimit,
+		logger:    cfg.logger,
 		conns:     make(map[*websocket.Conn]struct{}),
 	}, nil
 }
@@ -134,8 +146,6 @@ func (s *Server) Run(ctx context.Context) error {
 
 	select {
 	case err := <-serveErr:
-		if err != nil {
-		}
 		return err
 	case <-ctx.Done():
 	}
@@ -149,6 +159,7 @@ func (s *Server) Run(ctx context.Context) error {
 		_ = httpServer.Close()
 	}
 	if err := <-serveErr; err != nil {
+		return err
 	}
 
 	return nil
@@ -168,21 +179,35 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	defer s.untrack(conn)
 
 	ctx := r.Context()
+	remote := r.RemoteAddr
+	s.logger.InfoContext(ctx, "websocket connection opened", "remote_addr", remote)
+	defer s.logger.InfoContext(ctx, "websocket connection closed", "remote_addr", remote)
+
 	for {
 		messageType, payload, err := conn.Read(ctx)
 		if err != nil {
-			s.handleReadError(ctx, conn, r.RemoteAddr, err)
+			s.handleReadError(conn, err)
 			return
 		}
 
+		s.logger.InfoContext(ctx, "websocket message received",
+			"remote_addr", remote,
+			"type", messageTypeName(messageType),
+			"bytes", len(payload),
+		)
+
 		if err := s.handler(ctx, messageTypeName(messageType), payload); err != nil {
+			s.logger.ErrorContext(ctx, "websocket message handler failed",
+				"remote_addr", remote,
+				"error", err,
+			)
 			_ = conn.Close(websocket.StatusInternalError, "failed to process telemetry")
 			return
 		}
 	}
 }
 
-func (s *Server) handleReadError(ctx context.Context, conn *websocket.Conn, remote string, err error) {
+func (s *Server) handleReadError(conn *websocket.Conn, err error) {
 	status := websocket.CloseStatus(err)
 	if status == websocket.StatusNormalClosure {
 		return

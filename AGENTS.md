@@ -17,6 +17,7 @@ Run these commands to verify changes before finishing a task:
 - **Lint:** `golangci-lint run ./...`
 
 ## Go Code Style & Idioms
+- **Comments:** do NOT add comments unless I express command to do it.
 - **Simplicity:** Favor standard library packages over third-party dependencies.
 - **Error Handling:** Always check errors immediately. Wrap errors with context using `fmt.Errorf("action failed: %w", err)`. Never ignore errors with `_` unless explicitly justified.
 - **Control Flow:** Use early returns to keep the happy path left-aligned; avoid deep `if-else` nesting.

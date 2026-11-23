@@ -13,6 +13,7 @@ import (
 
 	"server/internal/telemetry/httpapi/middleware"
 	"server/pkg/buffer"
+	httpServer "server/pkg/http"
 	"server/pkg/logging"
 )
 
@@ -75,7 +76,7 @@ func TestHandleLatest(t *testing.T) {
 				t.Fatalf("Content-Type = %q, want application/json", ct)
 			}
 			if tt.wantStatus != http.StatusOK {
-				var errBody ErrorResponse
+				var errBody httpServer.ErrorResponse
 				if err := json.Unmarshal(rr.Body.Bytes(), &errBody); err != nil {
 					t.Fatalf("unmarshal error response: %v body=%q", err, rr.Body.String())
 				}

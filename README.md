@@ -162,22 +162,32 @@ Pre-commit runs `gofmt` checks, `golangci-lint run ./...`, and `go test -race ./
 
 ### Docker
 
-Build and run the telemetry server with the multi-stage Dockerfile (uses BuildKit cache mounts):
+The default target of the multi-stage Dockerfile (which uses BuildKit cache mounts)
+builds the WebSocket relay (`cmd/relay`):
 
 ```bash
-docker build -t telemetry-server .
-docker run --rm -p 8080:8080 \
+docker build -t telemetry-relay .
+docker run --rm -p 9000:9000 \
   -e KAFKA_BROKERS=host.docker.internal:9092 \
-  telemetry-server
+  telemetry-relay
+```
+
+To build the HTTP telemetry server instead, select its stage explicitly:
+
+```bash
+docker build --target telemetry-runtime -t telemetry-server .
 ```
 
 ### Local Kafka (Docker Compose), relay, and devices
 
-A local single-broker Kafka (KRaft) service is provided for development:
+The compose stack starts a single-broker Kafka (KRaft), the relay, and a `device`
+service that runs `make device` against the relay on startup:
 
 ```bash
-docker compose up -d
+docker compose up --build
+docker compose logs -f telemetry-relay   # connection and message logs
 # Broker for host clients: localhost:9092
+# Relay WebSocket endpoint: localhost:9000/telemetry
 ```
 
 Start the telemetry server and the relay in separate terminals:
