@@ -66,6 +66,7 @@ func ensureTopic(broker, topic string) error {
 	if err != nil {
 		return fmt.Errorf("dial kafka broker: %w", err)
 	}
+	//nolint:errcheck // Connection cleanup; close error is intentionally ignored.
 	defer conn.Close()
 
 	controller, err := conn.Controller()
@@ -80,6 +81,7 @@ func ensureTopic(broker, topic string) error {
 	if err != nil {
 		return fmt.Errorf("dial kafka controller: %w", err)
 	}
+	//nolint:errcheck // Connection cleanup; close error is intentionally ignored.
 	defer controllerConn.Close()
 
 	return controllerConn.CreateTopics(kafka.TopicConfig{

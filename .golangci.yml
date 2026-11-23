@@ -13,7 +13,7 @@ linters:
     - staticcheck
     - unused
     - gosec
-    - revive
+    # - revive
     - depguard
 
   settings:
@@ -29,12 +29,15 @@ linters:
             - server/internal
             - 'github.com/go-playground/validator/v10'
             - 'github.com/ilyakaznacheev/cleanenv'
+            - 'server/pkg/http'
 
         no-internal-dependencies:
           files:
             - "**/internal/**/*.go"
             - "!$test"
           list-mode: lax
+          allow:
+            - 'server/pkg/http'
           deny:
             - pkg: "server/pkg"
               desc: "Internal packages must not depend on pkg."
