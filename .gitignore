@@ -35,3 +35,6 @@ crash.log
 tf_estimate_override.tf
 .commandcode/
 .agents
+docs/website/node_modules/
+docs/website/build/
+docs/website/.docusaurus/

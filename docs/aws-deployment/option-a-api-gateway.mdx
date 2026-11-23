@@ -1,0 +1,54 @@
+---
+title: Option A — API Gateway HTTP API
+sidebar_position: 2
+description: Lambda behind an API Gateway HTTP API, with the relay on Fargate.
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import ThemedImage from '@theme/ThemedImage';
+
+This option puts an **API Gateway HTTP API** in front of the telemetry server. A browser calls
+`GET /telemetry/latest` on the HTTP API, which invokes the `telemetry-server` Lambda in the private subnet.
+
+<ThemedImage
+  alt="Option A: API Gateway invokes a telemetry-server Lambda in a private subnet; the relay runs on Fargate and produces to MSK Serverless"
+  sources={{
+    light: useBaseUrl('/diagrams/aws-serverless-option-a.png'),
+    dark: useBaseUrl('/diagrams/aws-serverless-option-a-dark.png'),
+  }}
+/>
+
+<div className="diagram-caption">Option A — API Gateway HTTP API (light/dark aware). Source: <code>docs/diagrams/aws-serverless-option-a.png</code>.</div>
+
+## How a request flows
+
+1. **Browser → API Gateway.** The HTTP API exposes a single route for `GET /telemetry/latest`. The gateway
+   is the only public endpoint in this option.
+2. **API Gateway → Lambda.** The route integrates directly with the `telemetry-server` function. Because the
+   function sits in the private subnet, it reaches MSK without a public address.
+3. **Lambda → MSK Serverless.** The consumer reads buffered records and the handler returns them as JSON.
+
+The relay path is unchanged: devices open a long-lived WebSocket to the Fargate service, the publish handler
+writes records to MSK, and the Lambda consumes them.
+
+## Why the relay runs on Fargate
+
+WebSocket ingestion is connection-oriented and long-lived. A Lambda would be billed while connections idle
+and would need an API Gateway WebSocket API with connection management. Fargate gives the relay a stable
+network identity inside the VPC, so it can maintain many concurrent device sessions and publish to MSK
+continuously.
+
+## Supporting resources
+
+- **IAM** — roles grant the Lambda and the ECS task access to MSK and to pull images from ECR.
+- **ECR** — both container images are stored in the same registry; the task and function reference their
+  own image tags.
+- **MSK Serverless** — IAM-authenticated, so no broker credentials are stored in the application.
+
+## Trade-offs
+
+API Gateway adds throttling, access logging, request validation and custom domains out of the box. The cost
+is an extra managed hop and API-Gateway-specific configuration. Choose this option when the read API needs
+gateway-level controls or is exposed to external consumers.
+
+See the [overview](/docs/aws-deployment/overview) to compare it with the Function URL alternative.

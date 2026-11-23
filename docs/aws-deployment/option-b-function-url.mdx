@@ -1,0 +1,51 @@
+---
+title: Option B — Lambda Function URL
+sidebar_position: 3
+description: Lambda behind an IAM-authenticated Function URL, with the relay on Fargate.
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import ThemedImage from '@theme/ThemedImage';
+
+This option removes API Gateway entirely. The `telemetry-server` Lambda is exposed through a **Function URL**
+with `AWS_IAM` authentication, and callers sign their requests with SigV4.
+
+<ThemedImage
+  alt="Option B: an IAM-authenticated Function URL invokes the telemetry-server Lambda; the relay runs on Fargate and produces to MSK Serverless"
+  sources={{
+    light: useBaseUrl('/diagrams/aws-serverless-option-b.png'),
+    dark: useBaseUrl('/diagrams/aws-serverless-option-b-dark.png'),
+  }}
+/>
+
+<div className="diagram-caption">Option B — Lambda Function URL (light/dark aware). Source: <code>docs/diagrams/aws-serverless-option-b.png</code>.</div>
+
+## How a request flows
+
+1. **Browser → Function URL.** The client sends `GET /telemetry/latest` to the Lambda's Function URL. Because
+   the auth type is `AWS_IAM`, the request must be signed with credentials allowed to invoke the function.
+2. **Function URL → Lambda.** AWS invokes the `telemetry-server` function directly; there is no gateway layer.
+3. **Lambda → MSK Serverless.** The function consumes the latest records and returns them as JSON.
+
+The ingest path is the same as in Option A: devices connect to the Fargate-hosted relay over WSS, the relay
+publishes to MSK Serverless, and the server consumes from the topic.
+
+## Why the relay still runs on Fargate
+
+A Function URL only solves the read path. Device ingestion remains a long-lived WebSocket workload, so the
+relay keeps its ECS service in the private subnet with a stable connection to MSK.
+
+## Supporting resources
+
+- **IAM** — the caller needs `lambda:InvokeFunctionUrl` (and the URL's `AWS_IAM` auth type must be honoured);
+  the Lambda and task roles need MSK access and ECR pull permissions.
+- **ECR** — stores the relay and telemetry server images.
+- **MSK Serverless** — the durable broker between the two processes.
+
+## Trade-offs
+
+This is the simpler and cheaper topology: fewer resources, less configuration and one less network hop. It
+does not provide API Gateway features such as throttling, usage plans, custom domains or request validation,
+and it requires IAM credentials on every caller. Choose it for internal callers that already sign AWS requests.
+
+See the [overview](/docs/aws-deployment/overview) to compare it with the API Gateway alternative.

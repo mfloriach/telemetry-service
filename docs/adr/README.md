@@ -11,3 +11,4 @@
 | [0007](0007-configure-websocket-connection-with-functional-options.md) | Configure the WebSocket connection with functional options and a required endpoint | superseded by [0009](0009-relay-hosts-websocket-ingest-server.md) | 2026-11-19 |
 | [0008](0008-configure-kafka-clients-with-functional-options.md) | Configure the Kafka clients with functional options and explicit required values | accepted | 2026-11-20 |
 | [0009](0009-relay-hosts-websocket-ingest-server.md) | Relay hosts the device WebSocket ingest server | accepted | 2026-11-22 |
+| [0010](0010-use-docusaurus-for-docs.md) | Use Docusaurus for the documentation site | proposed | 2026-11-23 |

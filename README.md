@@ -146,6 +146,20 @@ air
 
 Air uses `.air.toml` to rebuild and restart `./cmd/telemetry-server` on changes. The relay is run separately (see below) since it is a second process.
 
+### Documentation site
+
+A Docusaurus site renders `docs/` and `openspec/specs/` together. It uses the Node version pinned in `.nvmrc` (Node 26).
+
+```bash
+cd docs/website
+npm install
+npm run start
+npm run build
+npm run typecheck
+```
+
+`npm run start` serves a preview at `http://localhost:3000`; editing Markdown under `docs/` or `openspec/specs/` reloads it. `npm run build` writes static output to `docs/website/build`. In-progress artifacts under `openspec/changes/` are not published.
+
 ### Pre-commit hooks (Lefthook)
 
 This project uses [Lefthook](https://github.com/evilmartians/lefthook) (Go-based git hooks manager) to run formatting checks, linting, and tests before commits.
