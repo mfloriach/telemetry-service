@@ -2,59 +2,104 @@ package relay
 
 import (
 	"io"
+	"slices"
+	"strings"
 	"testing"
 )
 
-func TestLoad_RequiresTelemetryWSURL(t *testing.T) {
+func TestLoad(t *testing.T) {
 	t.Parallel()
 
-	_, err := Load(nil, func(string) string { return "" }, io.Discard)
-	if err == nil {
-		t.Fatal("expected error for missing TELEMETRY_WS_URL")
+	tests := []struct {
+		name        string
+		args        []string
+		env         map[string]string
+		wantErr     string
+		wantWSAddr  string
+		wantTopic   string
+		wantBrokers []string
+	}{
+		{
+			name:        "default listen address and topic",
+			env:         map[string]string{"KAFKA_BROKERS": "localhost:9092"},
+			wantWSAddr:  ":9000",
+			wantTopic:   "telemetry.raw",
+			wantBrokers: []string{"localhost:9092"},
+		},
+		{
+			name:        "listen address from environment",
+			env:         map[string]string{"KAFKA_BROKERS": "localhost:9092", "WS_ADDR": "127.0.0.1:9100"},
+			wantWSAddr:  "127.0.0.1:9100",
+			wantTopic:   "telemetry.raw",
+			wantBrokers: []string{"localhost:9092"},
+		},
+		{
+			name:        "flag listen address wins over environment",
+			args:        []string{"-ws-addr=127.0.0.1:9200"},
+			env:         map[string]string{"KAFKA_BROKERS": "localhost:9092", "WS_ADDR": "127.0.0.1:9100"},
+			wantWSAddr:  "127.0.0.1:9200",
+			wantTopic:   "telemetry.raw",
+			wantBrokers: []string{"localhost:9092"},
+		},
+		{
+			name:        "brokers are split and trimmed",
+			env:         map[string]string{"KAFKA_BROKERS": "localhost:9092, localhost:9093"},
+			wantWSAddr:  ":9000",
+			wantTopic:   "telemetry.raw",
+			wantBrokers: []string{"localhost:9092", "localhost:9093"},
+		},
+		{
+			name:    "malformed listen address",
+			env:     map[string]string{"KAFKA_BROKERS": "localhost:9092", "WS_ADDR": "not-an-address"},
+			wantErr: "invalid WS_ADDR",
+		},
+		{
+			name:    "listen address without port",
+			env:     map[string]string{"KAFKA_BROKERS": "localhost:9092", "WS_ADDR": "localhost"},
+			wantErr: "invalid WS_ADDR",
+		},
+		{
+			name:    "missing brokers",
+			env:     map[string]string{"WS_ADDR": "127.0.0.1:9100"},
+			wantErr: "KAFKA_BROKERS is required",
+		},
+		{
+			name:        "stale telemetry websocket url is ignored",
+			env:         map[string]string{"KAFKA_BROKERS": "localhost:9092", "TELEMETRY_WS_URL": "ws://stale.test/telemetry"},
+			wantWSAddr:  ":9000",
+			wantTopic:   "telemetry.raw",
+			wantBrokers: []string{"localhost:9092"},
+		},
 	}
-	if got := err.Error(); got != "TELEMETRY_WS_URL is required (set env var or -telemetry-ws-url)" {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
 
-func TestLoad_RequiresKafkaBrokers(t *testing.T) {
-	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err := Load(nil, func(key string) string {
-		if key == "TELEMETRY_WS_URL" {
-			return "ws://example.test/telemetry"
-		}
-		return ""
-	}, io.Discard)
-	if err == nil {
-		t.Fatal("expected error for missing KAFKA_BROKERS")
-	}
-	if got := err.Error(); got != "KAFKA_BROKERS is required (set env var or -kafka-brokers)" {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
+			getenv := func(key string) string {
+				return tt.env[key]
+			}
+			cfg, err := Load(tt.args, getenv, io.Discard)
 
-func TestLoad_DefaultsAndBrokers(t *testing.T) {
-	t.Parallel()
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load() error = %v, want containing %q", err, tt.wantErr)
+				}
+				return
+			}
 
-	cfg, err := Load(nil, func(key string) string {
-		switch key {
-		case "TELEMETRY_WS_URL":
-			return "ws://example.test/telemetry"
-		case "KAFKA_BROKERS":
-			return "localhost:9092, localhost:9093"
-		default:
-			return ""
-		}
-	}, io.Discard)
-	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
-	}
-	if cfg.KafkaTopic != "telemetry.raw" {
-		t.Fatalf("expected default topic telemetry.raw, got %q", cfg.KafkaTopic)
-	}
-	brokers := cfg.Brokers()
-	if len(brokers) != 2 || brokers[0] != "localhost:9092" || brokers[1] != "localhost:9093" {
-		t.Fatalf("unexpected brokers: %#v", brokers)
+			if err != nil {
+				t.Fatalf("Load() unexpected error: %v", err)
+			}
+			if cfg.WSAddr != tt.wantWSAddr {
+				t.Fatalf("WSAddr = %q, want %q", cfg.WSAddr, tt.wantWSAddr)
+			}
+			if cfg.KafkaTopic != tt.wantTopic {
+				t.Fatalf("KafkaTopic = %q, want %q", cfg.KafkaTopic, tt.wantTopic)
+			}
+			if got := cfg.Brokers(); !slices.Equal(got, tt.wantBrokers) {
+				t.Fatalf("Brokers() = %#v, want %#v", got, tt.wantBrokers)
+			}
+		})
 	}
 }

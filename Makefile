@@ -1,3 +1,7 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -c
+.ONESHELL:
+
 .PHONY: install-precommit fmt-check lint test build smoke
 
 install-precommit:
@@ -28,7 +32,4 @@ smoke:
 	./e2e/smoke_start.sh
 
 device:
-	for i in $(seq 1 100); do
-		echo "{\"device_id\":\"device-001\",\"value\":$i}"
-		sleep 1
-	done | websocat ws://localhost:8080/ws
+	@for i in $$(seq 1 100); do echo "{\"device_id\":\"device-001\",\"value\":$$i}"; sleep 1; done | websocat ws://localhost:9000/telemetry

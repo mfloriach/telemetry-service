@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"server/internal/relay"
 	"server/pkg/kafka"
 	"server/pkg/logging"
-
 	"server/pkg/ws"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
@@ -30,7 +33,8 @@ func run() error {
 	logger := logging.NewLogger(cfg.LogFormat, cfg.LogLevel, os.Stdout, nil)
 	slog.SetDefault(logger)
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	publisher, err := kafka.NewPublisher(cfg.Brokers(), cfg.KafkaTopic)
 	if err != nil {
@@ -38,17 +42,22 @@ func run() error {
 	}
 	defer func() {
 		if closeErr := publisher.Close(); closeErr != nil {
-			logger.ErrorContext(ctx, "close kafka publisher", "error", closeErr)
+			logger.ErrorContext(context.Background(), "close kafka publisher", "error", closeErr)
 		}
 	}()
 
-	conn, err := ws.NewWebsocket(ctx, cfg.TelemetryWSURL)
+	handler, err := relay.NewHandler(publisher)
 	if err != nil {
-		return fmt.Errorf("ws connection fail: %w", err)
+		return fmt.Errorf("create relay handler: %w", err)
 	}
 
-	if err := relay.NewRunner(conn, publisher).Run(ctx); err != nil {
-		return fmt.Errorf("ws connection fail: %w", err)
+	srv, err := ws.NewServer(cfg.WSAddr, handler.Handle)
+	if err != nil {
+		return fmt.Errorf("create ws server: %w", err)
+	}
+
+	if err := srv.Run(ctx); err != nil {
+		return fmt.Errorf("ws server: %w", err)
 	}
 
 	return nil

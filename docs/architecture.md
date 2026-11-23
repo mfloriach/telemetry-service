@@ -1,6 +1,6 @@
 # Architecture
 
-Telemetry system built in Go, consisting of two binaries: a **Telemetry Relay** (`cmd/relay`) that forwards WebSocket telemetry to Kafka, and a **Telemetry Server** (`cmd/telemetry-server`) that consumes from Kafka and serves records over HTTP.
+Telemetry system built in Go, consisting of two binaries: a **Telemetry Relay** (`cmd/relay`) that hosts the device WebSocket ingest endpoint and publishes telemetry to Kafka, and a **Telemetry Server** (`cmd/telemetry-server`) that consumes from Kafka and serves records over HTTP.
 
 ## Open Questions Resolved
 
@@ -9,7 +9,8 @@ Telemetry system built in Go, consisting of two binaries: a **Telemetry Relay** 
 **Decision: At-least-once, not exactly-once.**
 
 The architecture currently provides **at-least-once** delivery:
-- The Kafka publisher retries with exponential backoff + jitter on failure (see `internal/utils/kafka/publisher.go`).
+- The Kafka publisher (`pkg/kafka`) retries writes using the writer's configured delivery attempts.
+- Devices retry after the relay closes their connection, so a record can be published more than once.
 - The ingester does not deduplicate messages; if a message is consumed, buffered, and then the consumer re-delivers it after a rebalance, the buffer may contain duplicates.
 
 Achieving **exactly-once** would require:
@@ -18,33 +19,29 @@ Achieving **exactly-once** would require:
 
 This was deliberately deferred because the buffer is ephemeral (in-memory, lost on restart) and downstream consumers can tolerate occasional duplicates.
 
-### `TelemetryWSURL` removed from telemetry-server config
+### WebSocket ingest lives in the relay
 
-**Resolved: Removed.**
+**Resolved: The relay hosts the ingest server (ADR-0009).**
 
-`TelemetryWSURL` was a required field in `internal/config/config.go` (used only by `cmd/telemetry-server`). After migrating `SessionIngester` from WebSocket to a Kafka consumer (change `ingest-from-kafka-consumer`, now archived), the telemetry-server binary no longer reads from WebSocket and no longer needs a WebSocket URL. The field, its flag (`-telemetry-ws-url` / `TELEMETRY_WS_URL`), and its validation rule were removed from `internal/config/config.go`.
-
-`TelemetryWSURL` remains in `internal/relay/config.go` and is still used by `cmd/relay/main.go`, where the relay continues to dial an upstream WebSocket source.
-
----
+Devices connect to the relay at the fixed path `/telemetry` on `WS_ADDR` (default `:9000`). The relay accepts concurrent connections and publishes each received record to Kafka. `cmd/telemetry-server` has no WebSocket ingest route; it consumes Kafka and exposes the HTTP read API. The relay no longer dials an upstream source, and the WebSocket client in `pkg/ws` remains available but is not wired into either binary.
 
 ## System Context Diagram
 
 ```mermaid
 flowchart LR
     %% External actors and systems
-    UWS[Upstream WebSocket Source<br/>produces telemetry]
+    DEV[Devices<br/>WebSocket producers]
     KAFKA[(Kafka Cluster<br/>message broker)]
     API[API Clients<br/>HTTP consumers]
 
     %% System boundary
     subgraph TEL[Telemetry System]
-        RELAY[Telemetry Relay<br/>WebSocket → Kafka]
+        RELAY[Telemetry Relay<br/>WebSocket ingest → Kafka]
         SERVER[Telemetry Server<br/>Kafka consumer + HTTP API]
     end
 
     %% Data flows
-    UWS -->|telemetry records| RELAY
+    DEV -->|records on /telemetry| RELAY
     RELAY -->|publish messages| KAFKA
     KAFKA -->|consume messages| SERVER
     API -->|GET /telemetry/latest| SERVER
@@ -55,66 +52,68 @@ flowchart LR
 ```mermaid
 flowchart TB
     %% External
-    UWS[Upstream WebSocket Source]
+    DEV[Devices]
     KAFKA[(Kafka Cluster)]
     API[API Clients]
 
     subgraph TEL[Telemetry System]
         subgraph RELAY[Telemetry Relay<br/>cmd/relay]
-            R1[Relay Runner<br/>internal/relay]
-            R2[WS Dialer<br/>internal/utils/ws]
-            R3[Kafka Publisher<br/>internal/utils/kafka]
+            R1[WebSocket Server<br/>pkg/ws]
+            R2[Publish Handler<br/>internal/relay]
+            R3[Kafka Publisher<br/>pkg/kafka]
         end
 
         subgraph SERVER[Telemetry Server<br/>cmd/telemetry-server]
-            S1[HTTP Handler<br/>internal/httpapi]
-            S2[HTTP Service<br/>internal/httpapi]
-            S3[Session Ingester<br/>internal/ingest]
-            S4[Kafka Consumer<br/>internal/utils/kafka]
-            S5[RingBuffer<br/>internal/utils/buffer]
+            S1[HTTP Handler<br/>internal/telemetry/httpapi]
+            S2[Session Ingester<br/>internal/telemetry/ingest]
+            S3[Kafka Consumer<br/>pkg/kafka]
+            S4[Ring Buffer<br/>pkg/buffer]
         end
     end
 
     %% Relay flows
-    UWS -.->|dial + read| R1
-    R1 -.->|dial| R2
-    R1 -.->|publish| R3
+    DEV -->|ws://host:9000/telemetry| R1
+    R1 -->|frame type + payload| R2
+    R2 -->|publish| R3
     R3 -->|write messages| KAFKA
 
     %% Server flows
     KAFKA -.->|consume| S3
-    S3 -.->|read| S4
-    S3 -.->|add payload| S5
+    S3 -.->|records| S2
+    S2 -.->|add payload| S4
     API -.->|HTTP GET /telemetry/latest| S1
-    S1 -.->|query| S2
-    S2 -.->|read latest| S5
+    S1 -.->|query| S4
 ```
 
 ## Component Responsibilities
 
 | Component | Package | Responsibility |
 |---|---|---|
-| Relay Runner | `internal/relay` | Dial upstream WebSocket, read telemetry records, publish to Kafka. Runs a reconnect loop until context is canceled. |
-| WS Dialer | `internal/utils/ws` | Injectable `Dialer`/`Conn` interfaces for WebSocket connections (CoderDialer implementation). |
-| Kafka Publisher | `internal/utils/kafka` | Injectable `Publisher` interface; publishes telemetry records to Kafka with retry. |
-| Session Ingester | `internal/ingest` | Consume from Kafka consumer, append payloads to buffer. Context cancellation stops ingestion; non-context errors are wrapped. |
-| Kafka Consumer | `internal/utils/kafka` | Injectable `Consumer` interface; wraps `kafka-go.Reader` via `kafkaConsumerAdapter`. |
-| RingBuffer | `internal/utils/buffer` | Fixed-capacity (1000) in-memory ring buffer; ephemeral across restarts; serves latest records sorted by `ts` descending. |
-| HTTP Handler | `internal/httpapi` | Expose `GET /telemetry/latest`; validate `n` param; write JSON responses. |
-| HTTP Service | `internal/httpapi` | Query the buffer for latest `n` records; return as JSON response. |
+| WebSocket Server | `pkg/ws` | Accept concurrent device connections on `/telemetry`, enforce the read limit, deliver messages to a handler, and close connections with explicit status codes and reasons. |
+| WebSocket Client | `pkg/ws` | Dialing client retained for upstream-style use; not wired into the relay or telemetry server. |
+| Publish Handler | `internal/relay` | Publish each received record to Kafka unchanged; return an error so the server closes the affected connection. |
+| Relay Configuration | `internal/relay` | Load `WS_ADDR` (default `:9000`), `KAFKA_BROKERS`, `KAFKA_TOPIC`, and logging settings; validate before startup. |
+| Kafka Publisher | `pkg/kafka` | Publish telemetry records to Kafka with configurable delivery attempts; safe for concurrent use. |
+| Session Ingester | `internal/telemetry/ingest` | Consume from Kafka consumer, append payloads to buffer. Context cancellation stops ingestion; non-context errors are wrapped. |
+| Kafka Consumer | `pkg/kafka` | Injectable `Consumer` interface; wraps `kafka-go.Reader` via an adapter. |
+| RingBuffer | `pkg/buffer` | Fixed-capacity (1000) in-memory ring buffer; ephemeral across restarts; serves latest records sorted by `ts` descending. |
+| HTTP Handler | `internal/telemetry/httpapi` | Expose `GET /telemetry/latest`; validate `n` param; write JSON responses. |
+| HTTP Service | `internal/telemetry/httpapi` | Query the buffer for latest `n` records; return as JSON response. |
 
 ## Key Design Decisions
 
-1. **Kafka as durable buffer** — The relay publishes to Kafka; the ingester consumes from Kafka. This decouples the two binaries: the relay can run independently of the server, and messages survive temporary server downtime.
+1. **Relay owns ingest** — Devices connect to the relay, which is the single WebSocket entry point. The relay publishes to Kafka and the telemetry server consumes from it, so the two binaries remain independently deployable and restartable.
 
-2. **Interface-based injection** — `kafka.Publisher`, `kafka.Consumer`, `ws.Dialer`, and `Buffer` are all interfaces, enabling unit testing with mock implementations and future provider substitution.
+2. **Transport and policy are separated** — `pkg/ws` owns handshakes, read limits, and close semantics; `internal/relay` owns the decision to accept a record. The handler is a concrete function type, so the server does not depend on Kafka or on a transport abstraction with only one implementation.
 
 3. **Ephemeral buffer** — The RingBuffer is in-memory only (1000 records max, no persistence). Kafka is the source of truth for durable message storage.
 
-4. **At-least-once delivery** — Publishers retry on failure; consumers do not deduplicate. Duplicates may appear in the buffer after consumer rebalances.
+4. **At-least-once delivery with device retries** — The publisher retries writes, and a failed publish closes the affected device connection with a server-error status. Devices reconnect and resend; the relay does not buffer records while Kafka is unavailable.
+
+5. **Fixed ingest contract** — Only `/telemetry` is upgraded to a WebSocket; other paths are served as ordinary HTTP 404s. The listen address is configurable, the path is not.
 
 ## Open Questions
 
 - **Consumer offset commit strategy**: Not specified. Delegated to the Kafka client library (`kafka-go.Reader` default behavior).
-- **TLS / authentication**: No TLS or auth configuration is visible for WebSocket or Kafka connections. Required for production deployment.
+- **TLS / authentication**: No TLS or auth configuration is visible for the device WebSocket endpoint or Kafka connections. Required for production deployment.
 - **Consumer group ID**: Hardcoded as `"telemetry-ingest"` in `cmd/telemetry-server/main.go`; should be configurable.

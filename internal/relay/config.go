@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -16,16 +17,17 @@ const (
 	defaultAppEnv   = "development"
 	defaultLogLevel = "info"
 	defaultTopic    = "telemetry.raw"
+	defaultWSAddr   = ":9000"
 )
 
 // Config holds runtime configuration for the telemetry Kafka relay.
 type Config struct {
-	TelemetryWSURL string `validate:"required"`
-	KafkaBrokers   string `validate:"required"`
-	KafkaTopic     string `validate:"required"`
-	AppEnv         string `validate:"required"`
-	LogLevel       string `validate:"required,oneof=debug info warn error"`
-	LogFormat      string `validate:"required,oneof=json text"`
+	WSAddr       string `validate:"required"`
+	KafkaBrokers string `validate:"required"`
+	KafkaTopic   string `validate:"required"`
+	AppEnv       string `validate:"required"`
+	LogLevel     string `validate:"required,oneof=debug info warn error"`
+	LogFormat    string `validate:"required,oneof=json text"`
 }
 
 // Load reads configuration from environment variables and command-line flags.
@@ -41,7 +43,7 @@ func Load(args []string, getenv func(string) string, out io.Writer) (Config, err
 	fs := flag.NewFlagSet("relay", flag.ContinueOnError)
 	fs.SetOutput(out)
 
-	wsURLFlag := fs.String("telemetry-ws-url", "", "WebSocket URL for upstream telemetry source")
+	wsAddrFlag := fs.String("ws-addr", "", "WebSocket listen address for device connections (default :9000)")
 	brokersFlag := fs.String("kafka-brokers", "", "Comma-separated Kafka bootstrap broker addresses")
 	topicFlag := fs.String("kafka-topic", "", "Kafka topic name (default telemetry.raw)")
 	appEnvFlag := fs.String("app-env", "", "Application environment (default development)")
@@ -52,12 +54,12 @@ func Load(args []string, getenv func(string) string, out io.Writer) (Config, err
 	}
 
 	cfg := Config{
-		TelemetryWSURL: strings.TrimSpace(firstNonEmpty(*wsURLFlag, getenv("TELEMETRY_WS_URL"))),
-		KafkaBrokers:   strings.TrimSpace(firstNonEmpty(*brokersFlag, getenv("KAFKA_BROKERS"))),
-		KafkaTopic:     strings.TrimSpace(firstNonEmpty(*topicFlag, getenv("KAFKA_TOPIC"), defaultTopic)),
-		AppEnv:         strings.ToLower(strings.TrimSpace(firstNonEmpty(*appEnvFlag, getenv("APP_ENV"), defaultAppEnv))),
-		LogLevel:       strings.ToLower(strings.TrimSpace(firstNonEmpty(*logLevelFlag, getenv("LOG_LEVEL"), defaultLogLevel))),
-		LogFormat:      strings.ToLower(strings.TrimSpace(firstNonEmpty(*logFormatFlag, getenv("LOG_FORMAT")))),
+		WSAddr:       strings.TrimSpace(firstNonEmpty(*wsAddrFlag, getenv("WS_ADDR"), defaultWSAddr)),
+		KafkaBrokers: strings.TrimSpace(firstNonEmpty(*brokersFlag, getenv("KAFKA_BROKERS"))),
+		KafkaTopic:   strings.TrimSpace(firstNonEmpty(*topicFlag, getenv("KAFKA_TOPIC"), defaultTopic)),
+		AppEnv:       strings.ToLower(strings.TrimSpace(firstNonEmpty(*appEnvFlag, getenv("APP_ENV"), defaultAppEnv))),
+		LogLevel:     strings.ToLower(strings.TrimSpace(firstNonEmpty(*logLevelFlag, getenv("LOG_LEVEL"), defaultLogLevel))),
+		LogFormat:    strings.ToLower(strings.TrimSpace(firstNonEmpty(*logFormatFlag, getenv("LOG_FORMAT")))),
 	}
 	if cfg.LogFormat == "" {
 		cfg.LogFormat = defaultLogFormat(cfg.AppEnv)
@@ -77,8 +79,8 @@ func validateConfig(cfg Config) error {
 		if errors.As(err, &verrs) {
 			for _, fe := range verrs {
 				switch fe.Field() {
-				case "TelemetryWSURL":
-					return errors.New("TELEMETRY_WS_URL is required (set env var or -telemetry-ws-url)")
+				case "WSAddr":
+					return errors.New("WS_ADDR is required (set env var or -ws-addr)")
 				case "KafkaBrokers":
 					return errors.New("KAFKA_BROKERS is required (set env var or -kafka-brokers)")
 				case "KafkaTopic":
@@ -92,6 +94,11 @@ func validateConfig(cfg Config) error {
 		}
 		return fmt.Errorf("invalid config: %w", err)
 	}
+
+	if _, _, err := net.SplitHostPort(cfg.WSAddr); err != nil {
+		return fmt.Errorf("invalid WS_ADDR %q: %w", cfg.WSAddr, err)
+	}
+
 	return nil
 }
 

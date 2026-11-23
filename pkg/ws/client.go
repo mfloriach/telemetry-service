@@ -1,4 +1,5 @@
-// Package ws provides the WebSocket client used to read upstream telemetry.
+// Package ws provides WebSocket client and server primitives for moving telemetry
+// between devices, the relay, and upstream sources.
 package ws
 
 import (

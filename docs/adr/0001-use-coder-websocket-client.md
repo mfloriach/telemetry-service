@@ -1,7 +1,7 @@
 # ADR-0001: Use coder/websocket for upstream telemetry ingestion
 
 **Date**: 2026-11-16
-**Status**: accepted
+**Status**: superseded by [ADR-0009](0009-relay-hosts-websocket-ingest-server.md)
 **Deciders**: Project maintainer; coding agent
 
 ## Context
@@ -40,4 +40,4 @@ Use `github.com/coder/websocket` as the WebSocket client dependency, with the cl
 ## References
 
 - `pkg/ws/ws.go` — WebSocket client and connection options.
-- `internal/relay/relay.go` — consumer-side `Read`/`Close` interface.
+- `internal/relay/relay.go` — consumer-side `Read`/`Close` interface (removed by ADR-0009).

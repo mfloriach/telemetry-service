@@ -1,6 +1,6 @@
 # ADR 0006: Kafka telemetry relay as a separate process
 
-- Status: Accepted
+- Status: Accepted (amended by [ADR-0009](0009-relay-hosts-websocket-ingest-server.md))
 - Date: 2026-11-16
 - Deciders: Project maintainer (approved in change discussion)
 
@@ -10,10 +10,10 @@ The system ingests upstream device telemetry in `cmd/telemetry-server`, buffers 
 
 ## Decision
 
-Introduce a standalone relay binary (`cmd/relay`) that independently connects to the configured upstream WebSocket telemetry source and publishes each received JSON telemetry record to a configured Kafka topic. Provide local development Kafka via `docker-compose.yml` using a single-broker KRaft configuration.
+Introduce a standalone relay binary (`cmd/relay`) that hosts the device WebSocket ingest endpoint and publishes each received JSON telemetry record to a configured Kafka topic. Provide local development Kafka via `docker-compose.yml` using a single-broker KRaft configuration. The ingest endpoint and device-facing transport replaced the original upstream-dialer role; see ADR-0009.
 
-- **Runtime/config:** relay requires `TELEMETRY_WS_URL` and `KAFKA_BROKERS`, uses `KAFKA_TOPIC` (default `telemetry.raw`), and supports optional logging environment settings consistent with project conventions.
-- **Behavior:** publish original telemetry record content as Kafka message values; apply bounded reconnect/backoff handling for upstream instability.
+- **Runtime/config:** relay requires `KAFKA_BROKERS`, uses `KAFKA_TOPIC` (default `telemetry.raw`), hosts the device WebSocket endpoint on `WS_ADDR` (default `:9000`, fixed path `/telemetry`), and supports optional logging environment settings consistent with project conventions. Relay no longer reads `TELEMETRY_WS_URL` (amended by ADR-0009).
+- **Behavior:** publish original telemetry record content as Kafka message values; accept concurrent device connections and close only the affected connection when a publish ultimately fails. Devices are responsible for reconnecting and resending (amended by ADR-0009).
 - **Dependency:** use `github.com/segmentio/kafka-go` as the Kafka client library.
 - **Boundaries:** do not change existing `cmd/telemetry-server`, `internal/*` behavior, or tests. Minimal manifest/documentation/example updates (`go.mod`, `go.sum`, `.env.example`, README) are allowed only as needed for relay/Compose usability.
 
@@ -28,7 +28,7 @@ Introduce a standalone relay binary (`cmd/relay`) that independently connects to
 ### Negative
 
 - Adds an external dependency and operational components (Kafka broker, additional process).
-- Relay and telemetry-server may independently consume the same upstream stream, which can duplicate upstream connections/work.
+- The relay is the single WebSocket ingest point, so devices cannot deliver telemetry while it is unavailable.
 - Publish semantics are best-effort/at-least-once across reconnects or producer retries unless strengthened later.
 
 ## Alternatives Considered
@@ -55,6 +55,7 @@ Introduce a standalone relay binary (`cmd/relay`) that independently connects to
 - `openspec/changes/add-kafka-relay/specs/telemetry-kafka-relay/spec.md`
 - `cmd/relay/main.go`
 - `internal/relay/config.go`
-- `internal/relay/relay.go`
+- `internal/relay/handler.go`
 - `docker-compose.yml`
+- `docs/adr/0009-relay-hosts-websocket-ingest-server.md`
 - `docs/adr/0004-resilient-single-process-ingest-and-serve.md`

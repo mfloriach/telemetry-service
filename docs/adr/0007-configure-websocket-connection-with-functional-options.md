@@ -1,7 +1,7 @@
 # ADR-0007: Configure the WebSocket connection with functional options and a required endpoint
 
 **Date**: 2026-11-19
-**Status**: accepted
+**Status**: superseded by [ADR-0009](0009-relay-hosts-websocket-ingest-server.md)
 **Deciders**: Project maintainer; coding agent
 
 ## Context
