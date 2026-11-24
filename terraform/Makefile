@@ -6,6 +6,7 @@
 #   make tf-init TF_OPTION=option-a-lambda-apigw TF_ENV=prod
 #   make tf-plan TF_OPTION=option-b-lambda-functionurl TF_ENV=stage
 #   make tf-estimate TF_OPTION=option-a-lambda-apigw TF_ENV=prod
+#   make tf-estimate TF_OPTION=option-c-ec2-dynamodb TF_ENV=prod
 #   make tf-show
 #
 # AWS credentials are read from the host environment or ~/.aws.

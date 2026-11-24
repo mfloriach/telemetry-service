@@ -11,6 +11,7 @@ const sidebars: SidebarsConfig = {
         'aws-deployment/overview',
         'aws-deployment/option-a-api-gateway',
         'aws-deployment/option-b-function-url',
+        'aws-deployment/option-c-ec2-dynamodb',
       ],
     },
     {type: 'doc', id: 'instability', label: 'Instability handling'},

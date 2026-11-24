@@ -42,10 +42,46 @@ relay keeps its ECS service in the private subnet with a stable connection to MS
 - **ECR** — stores the relay and telemetry server images.
 - **MSK Serverless** — the durable broker between the two processes.
 
+## Expected load and cost estimate
+
+The prod usage assumptions live in
+`terraform/option-b-lambda-functionurl/env/prod/c3x-usage.yml`: 1,000,000 Lambda invocations per month with a
+200 ms average duration. The shared back-end assumptions match Option A exactly: 5 GB per ECR repository,
+5 GB of relay logs ingested and stored (0 GB scanned), and 50 GB of MSK Serverless data ingested, stored and
+scanned. Lambda duration is 1,000,000 × 0.2 s × 0.5 GB = 100,000 GB-seconds. There is no API Gateway usage
+entry because this implementation has no API Gateway — the `aws_lambda_function_url` resource is free.
+
+`make tf-estimate TF_OPTION=option-b-lambda-functionurl TF_ENV=prod` produces the following monthly baseline
+for `us-east-1` (730 hours). c3x uses the defaults in `variables.tf`, so the prod overrides of 1024 MB Lambda
+memory and two relay tasks are not reflected here.
+
+| Resource | Dimension | Usage | Unit rate (USD) | Monthly (USD) |
+| --- | --- | --- | --- | --- |
+| `aws_lambda_function.telemetry_server` | Requests | 1,000,000 | 0.0000002 / request | 0.20 |
+| `aws_lambda_function.telemetry_server` | Duration | 100,000 GB-s | 0.0000166667 / GB-s | 1.67 |
+| `aws_lambda_function_url.http_endpoint` | Function URL | — | free resource | 0.00 |
+| `module.msk_serverless.aws_msk_serverless_cluster.this` | Cluster | 730 h | 0.75 / h | 547.50 |
+| `module.msk_serverless.aws_msk_serverless_cluster.this` | Partitions | 730 partition-h | 0.0015 / partition-h | 1.10 |
+| `module.vpc.aws_nat_gateway.this[*]` | Gateway | 3 × 730 h | 0.045 / h | 98.55 |
+| `module.vpc.aws_eip.nat[*]` | Public IPv4 address | 3 × 730 h | 0.005 / h | 10.95 |
+| `module.ecs_fargate_relay.aws_ecs_service.relay` | vCPU | 182.5 vCPU-h | 0.04048 / vCPU-h | 7.39 |
+| `module.ecs_fargate_relay.aws_ecs_service.relay` | Memory | 365 GB-h | 0.004445 / GB-h | 1.62 |
+| `module.ecs_fargate_relay.aws_cloudwatch_log_group.relay` | Data ingested | 5 GB | 0.50 / GB | 2.50 |
+| `module.ecs_fargate_relay.aws_cloudwatch_log_group.relay` | Data stored | 5 GB-month | 0.03 / GB-month | 0.15 |
+| `module.ecs_fargate_relay.aws_cloudwatch_log_group.relay` | Data scanned | 0 GB | 0.005 / GB | 0.00 |
+| `module.ecr.aws_ecr_repository.telemetry_server` | Image storage | 5 GB-month | 0.10 / GB-month | 0.50 |
+| `module.ecr.aws_ecr_repository.telemetry_relay` | Image storage | 5 GB-month | 0.10 / GB-month | 0.50 |
+| **Total** | | | | **672.63** |
+
+Every row is shared with [Option A](/docs/aws-deployment/option-a-api-gateway), except that Option A adds the
+USD 1.00/month HTTP API charge, for a total of 673.63 USD/month at the same load.
+
 ## Trade-offs
 
 This is the simpler and cheaper topology: fewer resources, less configuration and one less network hop. It
 does not provide API Gateway features such as throttling, usage plans, custom domains or request validation,
 and it requires IAM credentials on every caller. Choose it for internal callers that already sign AWS requests.
 
-See the [overview](/docs/aws-deployment/overview) to compare it with the API Gateway alternative.
+See the [overview](/docs/aws-deployment/overview) to compare it with the
+[API Gateway](/docs/aws-deployment/option-a-api-gateway) and
+[EC2 + DynamoDB](/docs/aws-deployment/option-c-ec2-dynamodb) alternatives.

@@ -1,8 +1,8 @@
 resource,kind,dimension,quantity,unit,unit_rate,monthly_cost,source,currency
-aws_lambda_function.telemetry_server,aws_lambda_function,Requests,10000000000000,requests,0.0000002,2000000,live,USD
-aws_lambda_function.telemetry_server,aws_lambda_function,Duration,1000000000000,GB-seconds,0.0000166667,16666700,live,USD
+aws_lambda_function.telemetry_server,aws_lambda_function,Requests,1000000,requests,0.0000002,0.2,live,USD
+aws_lambda_function.telemetry_server,aws_lambda_function,Duration,100000,GB-seconds,0.0000166667,1.67,live,USD
 aws_lambda_permission.api_gateway,aws_lambda_permission,Free resource,0,n/a,0,0,static,USD
-aws_apigatewayv2_api.http_api,aws_apigatewayv2_api,HTTP API requests,1000000000000,requests,0.000001,1000000,live,USD
+aws_apigatewayv2_api.http_api,aws_apigatewayv2_api,HTTP API requests,1000000,requests,0.000001,1,live,USD
 aws_apigatewayv2_integration.lambda_integration,aws_apigatewayv2_integration,Free resource,0,n/a,0,0,static,USD
 aws_apigatewayv2_route.telemetry_latest,aws_apigatewayv2_route,Free resource,0,n/a,0,0,static,USD
 aws_apigatewayv2_stage.default,aws_apigatewayv2_stage,Free resource,0,n/a,0,0,static,USD
@@ -56,4 +56,4 @@ module.ecs_fargate_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group
 module.ecs_fargate_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Logs Insights queries,0,GB scanned,0.005,0,live,USD
 module.ecs_fargate_relay.aws_ecs_service.relay,aws_ecs_service,Fargate vCPU,182.5,vCPU-hours,0.04048,7.39,live,USD
 module.ecs_fargate_relay.aws_ecs_service.relay,aws_ecs_service,Fargate memory,365,GB-hours,0.004445,1.62,live,USD
-PROJECT,,TOTAL,,,,19667370.76,,USD
+PROJECT,,TOTAL,,,,673.63,,USD

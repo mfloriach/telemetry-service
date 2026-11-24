@@ -1,0 +1,10 @@
+project_name           = "telemetry"
+environment            = "prod"
+aws_region             = "us-east-1"
+availability_zones     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+vpc_cidr_block         = "10.0.0.0/16"
+enable_nat_gateway     = true
+lambda_memory_mb       = 1024
+lambda_timeout_seconds = 30
+log_level              = "warn"
+instance_type          = "t3.micro"

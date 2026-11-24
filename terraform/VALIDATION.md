@@ -99,9 +99,53 @@ terraform apply -var-file=terraform.tfvars
 
 2. Test the telemetry endpoint (requires AWS SigV4 signing for IAM auth).
 
+## Option C: EC2 relay writing to DynamoDB
+
+### Initialize and validate (per environment)
+
+```bash
+cd terraform/option-c-ec2-dynamodb/env/dev
+terraform init -backend-config=backend.hcl
+terraform validate
+terraform plan -var-file=terraform.tfvars
+```
+
+Repeat for `stage` and `prod`. Deploy with `terraform apply -var-file=terraform.tfvars`.
+
+### Verify
+
+1. Get the relay public IP, the API endpoint and the table name from Terraform outputs:
+
+   ```bash
+   terraform output ec2_public_ip
+   terraform output api_gateway_endpoint
+   terraform output dynamodb_table_name
+   ```
+
+2. Check the relay container logs in CloudWatch:
+
+   ```bash
+   aws logs tail /ec2/telemetry-prod-option-c/telemetry-relay --follow
+   ```
+
+3. Test the read API:
+
+   ```bash
+   curl "https://<api-gateway-id>.execute-api.us-east-1.amazonaws.com/prod/telemetry/latest?n=10"
+   ```
+
+4. Confirm records are stored in DynamoDB:
+
+   ```bash
+   aws dynamodb scan --table-name telemetry-prod-option-c-telemetry --limit 5
+   ```
+
+The relay listens on port 9000 and its security group currently allows inbound from `0.0.0.0/0`.
+Restrict that CIDR in `modules/ec2-relay/main.tf` before using this option outside a test environment.
+
 ## Relay (Fargate) Verification
 
-Both options deploy the same Fargate relay service. Verify:
+Options A and B deploy the same Fargate relay service. Verify:
 
 1. Check ECS service is running:
 

@@ -1,0 +1,57 @@
+resource,kind,dimension,quantity,unit,unit_rate,monthly_cost,source,currency
+aws_security_group.lambda,aws_security_group,Free resource,0,n/a,0,0,static,USD
+aws_lambda_function.telemetry_server,aws_lambda_function,Requests,1000000,requests,0.0000002,0.2,live,USD
+aws_lambda_function.telemetry_server,aws_lambda_function,Duration,100000,GB-seconds,0.0000166667,1.67,live,USD
+aws_lambda_permission.api_gateway,aws_lambda_permission,Free resource,0,n/a,0,0,static,USD
+aws_apigatewayv2_api.http_api,aws_apigatewayv2_api,HTTP API requests,1000000,requests,0.000001,1,live,USD
+aws_apigatewayv2_integration.lambda_integration,aws_apigatewayv2_integration,Free resource,0,n/a,0,0,static,USD
+aws_apigatewayv2_route.telemetry_latest,aws_apigatewayv2_route,Free resource,0,n/a,0,0,static,USD
+aws_apigatewayv2_stage.default,aws_apigatewayv2_stage,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_vpc.this,aws_vpc,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_internet_gateway.this,aws_internet_gateway,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[0],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[1],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.public[2],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[0],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[1],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_subnet.private[2],aws_subnet,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_eip.nat[0],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_eip.nat[1],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_eip.nat[2],aws_eip,Public IPv4 address-hour,730,hours,0.005,3.65,static,USD
+module.vpc.aws_nat_gateway.this[0],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[0],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_nat_gateway.this[1],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[1],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_nat_gateway.this[2],aws_nat_gateway,Gateway,730,hours,0.045,32.85,live,USD
+module.vpc.aws_nat_gateway.this[2],aws_nat_gateway,Data processed,0,GB,0.045,0,live,USD
+module.vpc.aws_route_table.public,aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[0],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[1],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.public[2],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[0],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[1],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table.private[2],aws_route_table,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[0],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[1],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.vpc.aws_route_table_association.private[2],aws_route_table_association,Free resource,0,n/a,0,0,static,USD
+module.ecr.aws_ecr_repository.telemetry_server,aws_ecr_repository,Image storage,5,GB-month,0.1,0.5,live,USD
+module.ecr.aws_ecr_repository.telemetry_relay,aws_ecr_repository,Image storage,5,GB-month,0.1,0.5,live,USD
+module.dynamodb.aws_dynamodb_table.telemetry,aws_dynamodb_table,Write request units,1,1M requests,0.000000625,0,live,USD
+module.dynamodb.aws_dynamodb_table.telemetry,aws_dynamodb_table,Read request units,1,1M requests,0.000000125,0,live,USD
+module.dynamodb.aws_dynamodb_table.telemetry,aws_dynamodb_table,Data storage,50,GB-month,0.25,12.5,live,USD
+module.iam_dynamodb.aws_iam_role.lambda_execution,aws_iam_role,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy_attachment.lambda_execution_basic,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy_attachment.lambda_execution_ecr,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy_attachment.lambda_execution_vpc,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy.lambda_dynamodb_read,aws_iam_role_policy,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role.ec2_relay,aws_iam_role,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy_attachment.ec2_relay_ecr,aws_iam_role_policy_attachment,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy.ec2_relay_dynamodb_write,aws_iam_role_policy,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_role_policy.ec2_relay_logs,aws_iam_role_policy,Free resource,0,n/a,0,0,static,USD
+module.iam_dynamodb.aws_iam_instance_profile.ec2_relay,aws_iam_instance_profile,Free resource,0,n/a,0,0,static,USD
+module.ec2_relay.aws_security_group.relay,aws_security_group,Free resource,0,n/a,0,0,static,USD
+module.ec2_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Data ingested,5,GB,0.5,2.5,live,USD
+module.ec2_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Data stored (archive),5,GB-month,0.03,0.15,live,USD
+module.ec2_relay.aws_cloudwatch_log_group.relay,aws_cloudwatch_log_group,Logs Insights queries,0,GB scanned,0.005,0,live,USD
+module.ec2_relay.aws_instance.relay,aws_instance,"Instance usage (Linux/UNIX, on-demand)",730,hours,0.0104,7.59,live,USD
+PROJECT,,TOTAL,,,,136.11,,USD

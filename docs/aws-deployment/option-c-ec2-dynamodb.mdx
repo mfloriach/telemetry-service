@@ -1,0 +1,89 @@
+---
+title: Option C — EC2 relay and DynamoDB
+sidebar_position: 4
+description: EC2 writes telemetry to DynamoDB; a Lambda behind an API Gateway HTTP API reads it.
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import ThemedImage from '@theme/ThemedImage';
+
+This option replaces the Fargate relay and MSK Serverless broker used by Options A and B. The **relay runs on
+a single EC2 instance** in a public subnet, writes each telemetry record to **Amazon DynamoDB**, and the
+`telemetry-server` Lambda queries the table when a client calls `GET /telemetry/latest`. The read API stays
+the same HTTP API as Option A.
+
+<ThemedImage
+  alt="Option C: an EC2 relay in a public subnet writes to DynamoDB; a Lambda behind an API Gateway HTTP API reads it"
+  sources={{
+    light: useBaseUrl('/diagrams/aws-serverless-option-c.png'),
+    dark: useBaseUrl('/diagrams/aws-serverless-option-c-dark.png'),
+  }}
+/>
+
+<div className="diagram-caption">Option C — EC2 relay + DynamoDB (light/dark aware). Source: <code>docs/diagrams/aws-serverless-option-c.png</code>.</div>
+
+## How a request flows
+
+1. **Device → EC2 relay.** Devices open a WebSocket to port 9000 on the relay's public IP. The relay
+   container is started by `user_data` from the `telemetry-relay` image in ECR.
+2. **Relay → DynamoDB.** Each record is written to the on-demand `telemetry` table as an item with partition
+   key `pk` and numeric sort key `sk` (the record timestamp). This replaces the Kafka publish step.
+3. **Client → API Gateway → Lambda.** The HTTP API forwards `GET /telemetry/latest` to the Lambda in the
+   private subnet.
+4. **Lambda → DynamoDB.** The function queries the table for the newest records and returns them as JSON,
+   replacing the in-memory ring buffer fed by the Kafka consumer.
+
+The EC2 instance has no key pair. Its logs go to the CloudWatch group
+`/ec2/<project>-<env>-option-c/telemetry-relay`, and its instance profile grants ECR pull, DynamoDB
+`PutItem` and CloudWatch Logs access. The Lambda role grants DynamoDB `Query`/`GetItem` instead.
+
+## Application prerequisite
+
+This option is Terraform-only. The images in ECR must be built with a DynamoDB publisher for the relay and a
+DynamoDB reader for the server; the current images use the Kafka publisher and consumer. Instances of the
+new option pass `DYNAMODB_TABLE` and `AWS_REGION` to both processes, and omit `KAFKA_BROKERS`/`KAFKA_TOPIC`.
+
+## Expected load and cost estimate
+
+The prod usage assumptions live in
+`terraform/option-c-ec2-dynamodb/env/prod/c3x-usage.yml`. They match the other options: 1,000,000 HTTP API
+requests and Lambda invocations per month, 200 ms average duration, 5 GB per ECR repository, 5 GB of relay
+logs ingested and stored (0 GB scanned), and 50 GB of stored data. DynamoDB additionally assumes 1,000,000
+writes and 1,000,000 reads per month.
+
+`make tf-estimate TF_OPTION=option-c-ec2-dynamodb TF_ENV=prod` produces this monthly baseline for `us-east-1`
+(730 hours). c3x uses the defaults in `variables.tf` — 512 MB Lambda memory and a `t3.micro` instance — not
+the prod override of 1024 MB Lambda memory.
+
+| Resource | Dimension | Usage | Unit rate (USD) | Monthly (USD) |
+| --- | --- | --- | --- | --- |
+| `aws_apigatewayv2_api.http_api` | HTTP API requests | 1,000,000 | 0.000001 / request | 1.00 |
+| `aws_lambda_function.telemetry_server` | Requests | 1,000,000 | 0.0000002 / request | 0.20 |
+| `aws_lambda_function.telemetry_server` | Duration | 100,000 GB-s | 0.0000166667 / GB-s | 1.67 |
+| `module.ec2_relay.aws_instance.relay` | Instance usage | 730 h | 0.0104 / h | 7.59 |
+| `module.dynamodb.aws_dynamodb_table.telemetry` | Data storage | 50 GB-month | 0.25 / GB-month | 12.50 |
+| `module.dynamodb.aws_dynamodb_table.telemetry` | Writes + reads | 1M each | per request | 0.00 |
+| `module.vpc.aws_nat_gateway.this[*]` | Gateway | 3 × 730 h | 0.045 / h | 98.55 |
+| `module.vpc.aws_eip.nat[*]` | Public IPv4 address | 3 × 730 h | 0.005 / h | 10.95 |
+| `module.ec2_relay.aws_cloudwatch_log_group.relay` | Data ingested | 5 GB | 0.50 / GB | 2.50 |
+| `module.ec2_relay.aws_cloudwatch_log_group.relay` | Data stored | 5 GB-month | 0.03 / GB-month | 0.15 |
+| `module.ecr.aws_ecr_repository.telemetry_server` | Image storage | 5 GB-month | 0.10 / GB-month | 0.50 |
+| `module.ecr.aws_ecr_repository.telemetry_relay` | Image storage | 5 GB-month | 0.10 / GB-month | 0.50 |
+| **Total** | | | | **136.11** |
+
+c3x rounds DynamoDB request-unit charges to USD 0.00 at this scale, so the table total is dominated by the
+50 GB of storage. Real on-demand write and read request charges are sub-dollar per month at 1M each.
+
+## Trade-offs
+
+Option C costs **USD 537.52/month less** than Option A at the same load: MSK Serverless (USD 548.60) and
+Fargate (USD 9.01) are replaced by EC2 (USD 7.59) and DynamoDB (USD 12.50). The HTTP API, Lambda, VPC, ECR
+and log costs are unchanged.
+
+The savings come with operational cost. The relay is a single EC2 instance in a public subnet with port 9000
+open to `0.0.0.0/0` and a dynamic public IP that changes on stop/start — restrict the ingress CIDR or put an
+ALB in front of it before production use. There is no automatic task replacement when the instance fails,
+and the partition/sort key design must match the application's lookups. Choose this option when cost matters
+more than managed availability and you can operate the EC2 host.
+
+See the [overview](/docs/aws-deployment/overview) to compare all three options.

@@ -9,8 +9,9 @@ The telemetry system has two long-running processes with very different needs:
 - **Relay** — holds open WebSocket connections from devices, so it needs a persistent runtime.
 - **Telemetry server** — serves a single read-only HTTP endpoint, so it can run on demand.
 
-Both deployment options keep the same data path and share one environment: dev, stage and prod use the
-same topology, separated by account or by configuration rather than by architecture.
+Options A and B keep the same MSK-backed data path and share one environment: dev, stage and prod use the
+same topology, separated by account or by configuration rather than by architecture. Option C replaces the
+Fargate relay and MSK Serverless with an EC2 relay and a DynamoDB table, while keeping the same read API.
 
 ## Shared building blocks
 
@@ -22,22 +23,71 @@ same topology, separated by account or by configuration rather than by architect
 | **Amazon ECS on AWS Fargate** | Runs the relay as a long-lived service inside the private subnet. It does not need to manage servers. |
 | **VPC 10.0.0.0/16** | Private subnet in `us-east-1` hosts the Fargate service and the Lambda function. |
 
-The ingest flow is identical in both options:
+Option C swaps the MSK Serverless and Fargate rows for an on-demand **Amazon DynamoDB** table and a
+**t3.micro EC2 instance** in a public subnet running the relay container.
+
+The ingest flow is identical in Options A and B:
 
 1. Devices connect over WSS to the relay and stream records.
 2. The relay publishes each record to MSK Serverless.
 3. The telemetry server consumes from MSK and keeps the latest 1000 records in an in-memory ring buffer.
 4. A client calls `GET /telemetry/latest`, and the server returns the buffered records.
 
+In Option C, step 2 is a `PutItem` into DynamoDB and step 3 is a `Query` against that table; the EC2 relay
+and the DynamoDB table replace the Fargate service and the broker.
+
 ## Choosing between the options
 
-| | Option A — API Gateway | Option B — Function URL |
-| --- | --- | --- |
-| Public entry point | HTTP API with one route | Lambda Function URL with `AWS_IAM` auth |
-| Client authentication | API Gateway authorizers, API keys or public | SigV4-signed requests with IAM credentials |
-| Operational features | Throttling, access logs, custom domains, request validation | Minimal — just invoke the function |
-| Cost and hops | Extra managed service and hop | Fewer components, lower cost |
-| Best when | You need gateway-level controls or a public API | Callers are internal IAM principals |
+| | Option A — API Gateway | Option B — Function URL | Option C — EC2 + DynamoDB |
+| --- | --- | --- | --- |
+| Public entry point | HTTP API with one route | Lambda Function URL with `AWS_IAM` auth | HTTP API with one route |
+| Client authentication | API Gateway authorizers, API keys or public | SigV4-signed requests with IAM credentials | API Gateway authorizers, API keys or public |
+| Operational features | Throttling, access logs, custom domains, request validation | Minimal — just invoke the function | Throttling, access logs, custom domains, request validation |
+| Ingest and store | Fargate relay → MSK Serverless | Fargate relay → MSK Serverless | EC2 relay → DynamoDB |
+| Monthly cost at the load below | 673.63 USD | 672.63 USD | 136.11 USD |
+| Best when | You need gateway-level controls or a public API | Callers are internal IAM principals | Lowest cost matters more than managed availability |
 
-Continue with [Option A](/docs/aws-deployment/option-a-api-gateway) or
-[Option B](/docs/aws-deployment/option-b-function-url) for the detailed walkthrough.
+## Expected load and estimated cost
+
+All three options are priced with the **same expected load**, declared in the `c3x-usage.yml` file under
+each environment directory. These are planning assumptions, not measured production traffic:
+
+| Input | Options A & B | Option C |
+| --- | --- | --- |
+| `GET /telemetry/latest` requests | 1,000,000 | 1,000,000 |
+| Lambda request duration | 200 ms | 200 ms |
+| ECR image storage (per repository) | 5 GB | 5 GB |
+| Relay CloudWatch Logs | 5 GB ingested, 5 GB stored, 0 GB scanned | 5 GB ingested, 5 GB stored, 0 GB scanned |
+| Broker / store data | MSK: 50 GB ingested, stored and scanned | DynamoDB: 50 GB stored, 1M writes + 1M reads |
+
+The figures come from `make tf-estimate` (`c3x estimate` in `us-east-1`, 730 hours/month) using the prod
+usage files. c3x prices the Terraform source with the defaults in `variables.tf` — 512 MB Lambda memory and
+one 0.25 vCPU / 512 MB relay task — rather than the `env/prod/terraform.tfvars` overrides of 1024 MB and two
+relay tasks, so a live prod deployment will cost more than this baseline.
+
+| Monthly cost (USD) | Option A — API Gateway | Option B — Function URL | Option C — EC2 + DynamoDB |
+| --- | ---: | ---: | ---: |
+| MSK Serverless (cluster + partitions) | 548.60 | 548.60 | — |
+| DynamoDB (storage + request units) | — | — | 12.50 |
+| EC2 relay (t3.micro) | — | — | 7.59 |
+| Fargate relay (vCPU + memory) | 9.01 | 9.01 | — |
+| VPC (3 NAT gateways + EIPs) | 109.50 | 109.50 | 109.50 |
+| CloudWatch Logs (ingest + storage) | 2.65 | 2.65 | 2.65 |
+| ECR (two repositories) | 1.00 | 1.00 | 1.00 |
+| Lambda (requests + duration) | 1.87 | 1.87 | 1.87 |
+| HTTP API requests | 1.00 | — | 1.00 |
+| Function URL | — | 0.00 (free resource) | — |
+| **Total** | **673.63** | **672.63** | **136.11** |
+
+Between A and B the only difference is ingress: the HTTP API bills 1,000,000 requests at USD 0.000001 each,
+adding **USD 1.00/month** (about 0.15%), while the Function URL is free. Option C is **USD 537.52/month
+cheaper** than A because MSK Serverless (USD 548.60) and Fargate (USD 9.01) are replaced by EC2 (USD 7.59)
+and DynamoDB (USD 12.50); ingress, Lambda, VPC, ECR and logs are unchanged. c3x rounds DynamoDB request-unit
+charges to USD 0.00 at this scale, so the DynamoDB row reflects storage only.
+
+These are infrastructure estimates only. Option C needs DynamoDB publisher and reader adapters in the
+container images before it can serve traffic; see the [option page](/docs/aws-deployment/option-c-ec2-dynamodb).
+
+Continue with [Option A](/docs/aws-deployment/option-a-api-gateway),
+[Option B](/docs/aws-deployment/option-b-function-url) or
+[Option C](/docs/aws-deployment/option-c-ec2-dynamodb) for the detailed walkthrough.
