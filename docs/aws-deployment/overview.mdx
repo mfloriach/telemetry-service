@@ -4,6 +4,8 @@ sidebar_position: 1
 description: Two serverless topologies for running the telemetry relay and server on AWS.
 ---
 
+import CostCalculator from '@site/src/components/CostCalculator';
+
 The telemetry system has two long-running processes with very different needs:
 
 - **Relay** — holds open WebSocket connections from devices, so it needs a persistent runtime.
@@ -52,32 +54,16 @@ and the DynamoDB table replace the Fargate service and the broker.
 All three options are priced with the **same expected load**, declared in the `c3x-usage.yml` file under
 each environment directory. These are planning assumptions, not measured production traffic:
 
-| Input | Options A & B | Option C |
-| --- | --- | --- |
-| `GET /telemetry/latest` requests | 1,000,000 | 1,000,000 |
-| Lambda request duration | 200 ms | 200 ms |
-| ECR image storage (per repository) | 5 GB | 5 GB |
-| Relay CloudWatch Logs | 5 GB ingested, 5 GB stored, 0 GB scanned | 5 GB ingested, 5 GB stored, 0 GB scanned |
-| Broker / store data | MSK: 50 GB ingested, stored and scanned | DynamoDB: 50 GB stored, 1M writes + 1M reads |
+The inputs below start at those assumptions; both load and instance sizing can be changed in the browser.
 
 The figures come from `make tf-estimate` (`c3x estimate` in `us-east-1`, 730 hours/month) using the prod
 usage files. c3x prices the Terraform source with the defaults in `variables.tf` — 512 MB Lambda memory and
 one 0.25 vCPU / 512 MB relay task — rather than the `env/prod/terraform.tfvars` overrides of 1024 MB and two
-relay tasks, so a live prod deployment will cost more than this baseline.
+relay tasks, so a live prod deployment will cost more than this baseline. The calculator starts from those
+baseline values, but the EC2 instance type and count and the Fargate task size and count are adjustable;
+the Terraform defaults themselves are unchanged.
 
-| Monthly cost (USD) | Option A — API Gateway | Option B — Function URL | Option C — EC2 + DynamoDB |
-| --- | ---: | ---: | ---: |
-| MSK Serverless (cluster + partitions) | 548.60 | 548.60 | — |
-| DynamoDB (storage + request units) | — | — | 12.50 |
-| EC2 relay (t3.micro) | — | — | 7.59 |
-| Fargate relay (vCPU + memory) | 9.01 | 9.01 | — |
-| VPC (3 NAT gateways + EIPs) | 109.50 | 109.50 | 109.50 |
-| CloudWatch Logs (ingest + storage) | 2.65 | 2.65 | 2.65 |
-| ECR (two repositories) | 1.00 | 1.00 | 1.00 |
-| Lambda (requests + duration) | 1.87 | 1.87 | 1.87 |
-| HTTP API requests | 1.00 | — | 1.00 |
-| Function URL | — | 0.00 (free resource) | — |
-| **Total** | **673.63** | **672.63** | **136.11** |
+<CostCalculator />
 
 Between A and B the only difference is ingress: the HTTP API bills 1,000,000 requests at USD 0.000001 each,
 adding **USD 1.00/month** (about 0.15%), while the Function URL is free. Option C is **USD 537.52/month
